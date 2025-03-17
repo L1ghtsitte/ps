@@ -1,0 +1,114 @@
+.navbar {
+  padding-top: 0px !important;
+  padding-bottom: 0px !important;
+}
+.container-fluid {
+  background-color: #7500CF;
+  display: flex; 
+  margin-top: 0px;
+  height: auto;
+}
+.nav-item {
+  margin-right: 50px;
+  font-size: 22px;
+}
+.main {
+  background-color: #C4B2E9;
+}
+.photo {
+  padding: 80px;
+  justify-content: center;
+  display: flex;
+}
+.img {
+  padding-right: 60px;
+  opacity: 0.1;
+  width: 200px;
+}
+.h1 {
+  font-weight: 40px;
+  font-size: 300px;
+  font-family: fantasy;
+  text-align: start;
+  margin-left: 100px;
+}
+.price {
+  list-style: none;
+  display: flex;
+}
+.price-s {
+  font-size: 25px;
+  border-radius: 1px black;
+}
+.baton {
+  padding-right: 40px;
+  padding-left: 40px;
+  background-color: #E0D6F3;
+  font-family: extra;
+}
+.price-time {
+  align-items: flex-start;
+  display: flex;
+  flex-direction: row;
+  font-weight: 700;
+  row-gap: 5px;
+}
+.price-lk {
+  align-items: end;
+  flex-direction: column;
+  font-weight: 900;
+  row-gap: 5px;
+  margin-left: 150px;
+}
+p {
+  display: block;
+  margin-block-start: 1em;
+  margin-block-end: 1em;
+  margin-inline-start: 0px;
+  margin-inline-end: 0px;
+  unicode-bidi: isolate;
+}
+.card {
+  margin-left: 60px;
+}
+.card-text {
+  padding-top: 24px;
+}
+.acesor {
+  display: flex;
+}
+.gso {
+  padding-left: 70px;
+}
+.card-2 {
+
+}
+.footer-logo {
+  display: flex;
+}
+.podval {
+  background-color: #7500CF;
+  display: flex;
+}
+.nav-item {
+
+}
+.kakoy-to {
+  display: flex;
+  width: 80%;
+  justify-content: end;
+  align-items: center;
+}
+.kakoy-to-1 {
+  width: 20%;
+}
+.pudge {
+  justify-content: end;
+  align-items: end;
+  list-style-type: none;
+  display: flex;
+  text-decoration: none;
+}
+.pudge-1 {
+  text-decoration: none;
+}
