@@ -1,0 +1,59 @@
+body{
+    background: url('../img/abaut.png') no-repeat center center fixed;
+        margin: 0;
+        background-size: cover;
+        color: #333;
+}
+.head_about{
+        text-align: center;
+        color: #135016;
+        font-size: 37px;
+        background-color: #9409ff;
+        margin-bottom: 0px ;
+}
+.nt {
+    width: 400px; 
+    height: 200px;
+}
+footer {
+    background-color: #333;
+    color: white;
+    text-align: center;
+    padding: 10px 0;
+    position: fixed;
+    bottom: 0;
+    width: 100%;
+}
+.container1 {
+    width: 80%;
+    margin: 20px auto;
+    padding: 20px;
+    background-color: #9913ff;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    border-radius: 5px;
+}
+.review-card, .blog-card, .faq-card {
+    background-color: rgba(255, 255, 255, 0.9);
+    padding: 15px;
+    margin-bottom: 15px;
+    border-radius: 5px;
+    box-shadow: 0 0 10px rgba(0,0,0,0.1);
+}
+.review-card, .faq-card {
+    background-color: white;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    padding: 20px;
+    margin: 20px 0;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+.stars {
+    color: #ffd700;
+}
+
+.rating-input {
+    display: flex;
+    justify-content: center;
+    margin: 10px 0;
+}
