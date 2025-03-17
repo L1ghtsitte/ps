@@ -112,3 +112,9 @@ p {
 .pudge-1 {
   text-decoration: none;
 }
+.sun {
+  padding-right: 15px;
+  opacity: 0.1;
+  width: 50px;
+  color: rgb(238, 241, 16);
+}
