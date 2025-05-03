@@ -1,0 +1,16 @@
+1. Алексей Иванов (Team Lead)
+  • Phone: +79123456789
+  • Email: ivanov.alexey@it-company.com
+  • Backup: a.ivanov@protonmail.com
+    
+2. Анна Иванова (Senior Dev)
+   - Рабочий: 89091112233
+   - Личный: +79161112233
+   - Emails:
+     • ivanova@it-company.com
+     • ivanova.dev@gmail.com
+
+3. Иван Петров (Middle Dev)
+   Контактные данные:
+   • Тел: 89167778899
+   • Email: petrov.it@company.org
