@@ -1,0 +1,20 @@
+[
+  {
+    "full_name": "Иванов Алексей Викторович",
+    "phones": ["+79123456789", "89094561234"],
+    "emails": ["ivanov@mail.com", "a.ivanov@work.com"],
+    "position": "Руководитель отдела"
+  },
+  {
+    "full_name": "Иванова Анна Сергеевна",
+    "phones": ["89091112233"],
+    "emails": ["ivanova@company.org"],
+    "position": "Разработчик"
+  },
+  {
+    "full_name": "Петров Иван Дмитриевич",
+    "phones": ["89167778899", "83432987654"],
+    "emails": ["petrov@company.org", "i.petrov@personal.com"],
+    "position": "Аналитик"
+  }
+]
