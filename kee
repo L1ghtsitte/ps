@@ -1,0 +1,78 @@
+#include <iostream>
+#include <fstream>
+#include <string>
+#include <vector>
+
+using namespace std;
+
+// Жёстко прописанные тестовые файлы
+const vector<string> TEST_FILES = {
+    "test1.txt",
+    "test2.txt",
+    "contacts.csv",
+    "data.txt"
+};
+
+// Структура для результатов поиска
+struct SearchResult {
+    string filename;
+    int line_number;
+    string line_content;
+};
+
+// Функция поиска в файле
+vector<SearchResult> searchInFile(const string& filename, const string& searchText) {
+    vector<SearchResult> results;
+    ifstream file(filename);
+    
+    if (!file.is_open()) {
+        cerr << "Ошибка! Файл не найден: " << filename << endl;
+        return results;
+    }
+
+    string line;
+    int lineNum = 1;
+    
+    while (getline(file, line)) {
+        if (line.find(searchText) != string::npos) {
+            results.push_back({filename, lineNum, line});
+        }
+        lineNum++;
+    }
+    
+    return results;
+}
+
+int main() {
+    cout << "Программа поиска в предустановленных файлах\n";
+    
+    string searchText;
+    cout << "Введите текст для поиска (номер/email): ";
+    getline(cin, searchText);
+
+    vector<SearchResult> allResults;
+    
+    // Поиск по всем указанным файлам
+    for (const auto& filename : TEST_FILES) {
+        auto results = searchInFile(filename, searchText);
+        allResults.insert(allResults.end(), results.begin(), results.end());
+    }
+
+    // Сохранение результатов
+    ofstream out("results.txt");
+    out << "Результаты поиска для: " << searchText << "\n\n";
+    
+    if (allResults.empty()) {
+        out << "Совпадений не найдено.\n";
+        cout << "Совпадений не найдено.\n";
+    } else {
+        out << "Найдено " << allResults.size() << " совпадений:\n\n";
+        for (const auto& result : allResults) {
+            out << "Файл: " << result.filename << "\n";
+            out << "Строка " << result.line_number << ": " << result.line_content << "\n\n";
+        }
+        cout << "Найдено " << allResults.size() << " совпадений. См. results.txt\n";
+    }
+
+    return 0;
+}
