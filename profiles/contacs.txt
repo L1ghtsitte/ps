@@ -1,0 +1,16 @@
+
+1. Иванова Анна Сергеевна
+   Телефон: +7(912)111-22-33
+   Email: ivanova@company.com
+   Дубль: ivanova.as@gmail.com
+
+2. Петров Иван Дмитриевич
+   Рабочий: 89091112233
+   Личный: +79167778899
+   Email: petrov.id@mail.ru
+
+3. Сидорова Мария (менеджер)
+   Тел: 83432987654
+   Моб: 89157654321
+   Email: sidorova@company.com
+   Резервный: sidorova.maria@gmail.com
