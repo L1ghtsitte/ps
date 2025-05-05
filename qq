@@ -1,82 +1,17 @@
-#include <iostream>
-#include <fstream>
+#pragma once
 #include <string>
-#include <vector>
-#include <filesystem> // Используем стандартную файловую систему C++17
 
-namespace fs = std::filesystem;
+using namespace System;
+using namespace System::IO;
+using namespace System::Web::Script::Serialization;
 
-// Функция для поиска текста в файле
-std::vector<std::string> searchInFile(const fs::path& filePath, const std::string& searchText) {
-    std::vector<std::string> results;
-    std::ifstream file(filePath);
-    
-    if (!file.is_open()) {
-        std::cerr << "Ошибка открытия файла: " << filePath << std::endl;
-        return results;
+public ref class JsonHelper
+{
+public:
+    static Object^ DeserializeFromFile(String^ filePath)
+    {
+        String^ jsonText = File::ReadAllText(filePath);
+        JavaScriptSerializer^ serializer = gcnew JavaScriptSerializer();
+        return serializer->DeserializeObject(jsonText);
     }
-
-    std::string line;
-    int lineNumber = 1;
-    
-    while (std::getline(file, line)) {
-        if (line.find(searchText) != std::string::npos) {
-            results.push_back("Файл: " + filePath.filename().string() + 
-                            ", строка " + std::to_string(lineNumber) + ": " + line);
-        }
-        lineNumber++;
-    }
-
-    return results;
-}
-
-int main() {
-    std::string searchText, directoryPath;
-    
-    std::cout << "Введите текст для поиска (номер телефона или email): ";
-    std::getline(std::cin, searchText);
-    
-    std::cout << "Введите путь к директории для поиска: ";
-    std::getline(std::cin, directoryPath);
-
-    try {
-        std::vector<std::string> allResults;
-        int filesProcessed = 0;
-        
-        // Рекурсивный обход директории
-        for (const auto& entry : fs::directory_iterator(directoryPath)) {
-            if (entry.is_regular_file()) {
-                auto results = searchInFile(entry.path(), searchText);
-                allResults.insert(allResults.end(), results.begin(), results.end());
-                filesProcessed++;
-                std::cout << "Обработан файл: " << entry.path().filename() << "\n";
-            }
-        }
-
-        // Сохранение результатов
-        std::ofstream out("search_results.txt");
-        out << "Результаты поиска для: " << searchText << "\n\n";
-        
-        if (allResults.empty()) {
-            out << "Совпадений не найдено.\n";
-        } else {
-            for (const auto& result : allResults) {
-                out << result << "\n";
-            }
-            out << "\nВсего найдено: " << allResults.size() << " совпадений\n";
-        }
-        
-        std::cout << "\nПоиск завершен. Обработано файлов: " << filesProcessed
-                 << "\nРезультаты сохранены в search_results.txt\n";
-    }
-    catch (const fs::filesystem_error& e) {
-        std::cerr << "Ошибка файловой системы: " << e.what() << std::endl;
-        return 1;
-    }
-    catch (...) {
-        std::cerr << "Неизвестная ошибка" << std::endl;
-        return 2;
-    }
-
-    return 0;
-}
+};
