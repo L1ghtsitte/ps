@@ -1,13 +1,59 @@
-#include "MyForm.h"
+// MyForm.h - обработчик кнопки входа
+private:
+    System::Void btnLogin_Click(System::Object^ sender, System::EventArgs^ e) {
+        if (String::IsNullOrEmpty(txtUsername->Text) || 
+            String::IsNullOrEmpty(txtPassword->Text) || 
+            cmbRole->SelectedItem == nullptr)
+        {
+            MessageBox::Show("Заполните все поля", "Ошибка", 
+                MessageBoxButtons::OK, MessageBoxIcon::Exclamation);
+            return;
+        }
 
-using namespace System;
-using namespace System::Windows::Forms;
+        try {
+            String^ role = cmbRole->SelectedItem->ToString();
+            String^ jsonFile = role + ".json";
+            
+            if (!File::Exists(jsonFile)) {
+                MessageBox::Show("Файл конфигурации не найден", "Ошибка", 
+                    MessageBoxButtons::OK, MessageBoxIcon::Error);
+                return;
+            }
 
-[STAThread]
-int main(array<String^>^ args) {
-    Application::EnableVisualStyles();
-    Application::SetCompatibleTextRenderingDefault(false);
-    LoginSystem::MyForm form;
-    Application::Run(%form);
-    return 0;
-}
+            // Получаем объект из JSON
+            Object^ credentials = JsonHelper::DeserializeFromFile(jsonFile);
+            
+            // Получаем свойства через reflection
+            Type^ type = credentials->GetType();
+            PropertyInfo^ usernameProp = type->GetProperty("username");
+            PropertyInfo^ passwordProp = type->GetProperty("password");
+            PropertyInfo^ accessLevelProp = type->GetProperty("access_level");
+
+            if (usernameProp == nullptr || passwordProp == nullptr || accessLevelProp == nullptr) {
+                MessageBox::Show("Неверная структура JSON", "Ошибка",
+                    MessageBoxButtons::OK, MessageBoxIcon::Error);
+                return;
+            }
+
+            String^ username = safe_cast<String^>(usernameProp->GetValue(credentials));
+            String^ password = safe_cast<String^>(passwordProp->GetValue(credentials));
+            String^ accessLevel = safe_cast<String^>(accessLevelProp->GetValue(credentials));
+
+            if (txtUsername->Text == username && txtPassword->Text == password) {
+                this->Hide();
+                MainForm^ mainForm = gcnew MainForm(accessLevel);
+                mainForm->ShowDialog();
+                this->Close();
+            }
+            else {
+                MessageBox::Show("Неверный логин или пароль", "Ошибка", 
+                    MessageBoxButtons::OK, MessageBoxIcon::Error);
+                txtPassword->Text = "";
+                txtUsername->Focus();
+            }
+        }
+        catch (Exception^ ex) {
+            MessageBox::Show("Ошибка: " + ex->Message, "Ошибка", 
+                MessageBoxButtons::OK, MessageBoxIcon::Error);
+        }
+    }
