@@ -1,72 +1,13 @@
-#pragma once
+#include "MyForm.h"
 
-namespace LoginSystem {
+using namespace System;
+using namespace System::Windows::Forms;
 
-    using namespace System;
-    using namespace System::Windows::Forms;
-
-    public ref class MainForm : public Form
-    {
-    public:
-        MainForm(String^ accessLevel)
-        {
-            InitializeComponent();
-            this->accessLevel = accessLevel;
-            this->Text = "Main Application - " + accessLevel;
-            
-            // Настройка интерфейса в зависимости от уровня доступа
-            SetupUI();
-        }
-
-    private:
-        String^ accessLevel;
-        System::ComponentModel::Container ^components;
-
-        void InitializeComponent()
-        {
-            this->SuspendLayout();
-            this->AutoScaleDimensions = System::Drawing::SizeF(6, 13);
-            this->AutoScaleMode = System::Windows::Forms::AutoScaleMode::Font;
-            this->ClientSize = System::Drawing::Size(500, 400);
-            this->Name = L"MainForm";
-            this->StartPosition = System::Windows::Forms::FormStartPosition::CenterScreen;
-            this->ResumeLayout(false);
-        }
-
-        void SetupUI()
-        {
-            Label^ lblWelcome = gcnew Label();
-            lblWelcome->Text = "Welcome! Your access level: " + accessLevel;
-            lblWelcome->Location = System::Drawing::Point(20, 20);
-            lblWelcome->AutoSize = true;
-            this->Controls->Add(lblWelcome);
-
-            // Пример добавления элементов в зависимости от уровня доступа
-            if (accessLevel == "admin")
-            {
-                Button^ btnAdmin = gcnew Button();
-                btnAdmin->Text = "Admin Function";
-                btnAdmin->Location = System::Drawing::Point(20, 60);
-                btnAdmin->Click += gcnew EventHandler(this, &MainForm::AdminFunction_Click);
-                this->Controls->Add(btnAdmin);
-            }
-            
-            Button^ btnLogout = gcnew Button();
-            btnLogout->Text = "Logout";
-            btnLogout->Location = System::Drawing::Point(400, 20);
-            btnLogout->Click += gcnew EventHandler(this, &MainForm::Logout_Click);
-            this->Controls->Add(btnLogout);
-        }
-
-        void AdminFunction_Click(Object^ sender, EventArgs^ e)
-        {
-            MessageBox::Show("Admin function executed!", "Admin", 
-                MessageBoxButtons::OK, MessageBoxIcon::Information);
-        }
-
-        void Logout_Click(Object^ sender, EventArgs^ e)
-        {
-            this->Close();
-        }
-    };
+[STAThread]
+int main(array<String^>^ args) {
+    Application::EnableVisualStyles();
+    Application::SetCompatibleTextRenderingDefault(false);
+    LoginSystem::MyForm form;
+    Application::Run(%form);
+    return 0;
 }
