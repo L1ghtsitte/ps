@@ -1,53 +1,72 @@
-private:
-    System::Void btnLogin_Click(System::Object^ sender, System::EventArgs^ e) {
-        if (String::IsNullOrEmpty(txtUsername->Text) || 
-            String::IsNullOrEmpty(txtPassword->Text) || 
-            cmbRole->SelectedItem == nullptr)
+#pragma once
+
+namespace LoginSystem {
+
+    using namespace System;
+    using namespace System::Windows::Forms;
+
+    public ref class MainForm : public Form
+    {
+    public:
+        MainForm(String^ accessLevel)
         {
-            MessageBox::Show("Please fill all fields", "Error", 
-                MessageBoxButtons::OK, MessageBoxIcon::Exclamation);
-            return;
+            InitializeComponent();
+            this->accessLevel = accessLevel;
+            this->Text = "Main Application - " + accessLevel;
+            
+            // Настройка интерфейса в зависимости от уровня доступа
+            SetupUI();
         }
 
-        try {
-            String^ role = cmbRole->SelectedItem->ToString();
-            String^ jsonFile = role + ".json";
-            
-            if (!File::Exists(jsonFile)) {
-                MessageBox::Show("Role configuration not found", "Error", 
-                    MessageBoxButtons::OK, MessageBoxIcon::Error);
-                return;
-            }
+    private:
+        String^ accessLevel;
+        System::ComponentModel::Container ^components;
 
-            dynamic^ credentials = JsonHelper::DeserializeFromFile(jsonFile);
-            
-            if (txtUsername->Text == credentials["username"]->ToString() && 
-                txtPassword->Text == credentials["password"]->ToString())
+        void InitializeComponent()
+        {
+            this->SuspendLayout();
+            this->AutoScaleDimensions = System::Drawing::SizeF(6, 13);
+            this->AutoScaleMode = System::Windows::Forms::AutoScaleMode::Font;
+            this->ClientSize = System::Drawing::Size(500, 400);
+            this->Name = L"MainForm";
+            this->StartPosition = System::Windows::Forms::FormStartPosition::CenterScreen;
+            this->ResumeLayout(false);
+        }
+
+        void SetupUI()
+        {
+            Label^ lblWelcome = gcnew Label();
+            lblWelcome->Text = "Welcome! Your access level: " + accessLevel;
+            lblWelcome->Location = System::Drawing::Point(20, 20);
+            lblWelcome->AutoSize = true;
+            this->Controls->Add(lblWelcome);
+
+            // Пример добавления элементов в зависимости от уровня доступа
+            if (accessLevel == "admin")
             {
-                // Закрываем текущую форму
-                this->Hide();
-                
-                // Открываем главную форму с передачей уровня доступа
-                MainForm^ mainForm = gcnew MainForm(credentials["access_level"]->ToString());
-                mainForm->ShowDialog();
-                
-                // После закрытия главной формы - закрываем приложение
-                this->Close();
+                Button^ btnAdmin = gcnew Button();
+                btnAdmin->Text = "Admin Function";
+                btnAdmin->Location = System::Drawing::Point(20, 60);
+                btnAdmin->Click += gcnew EventHandler(this, &MainForm::AdminFunction_Click);
+                this->Controls->Add(btnAdmin);
             }
-            else {
-                MessageBox::Show("Invalid username or password", "Error", 
-                    MessageBoxButtons::OK, MessageBoxIcon::Error);
-                txtPassword->Text = "";
-                txtUsername->Focus();
-            }
+            
+            Button^ btnLogout = gcnew Button();
+            btnLogout->Text = "Logout";
+            btnLogout->Location = System::Drawing::Point(400, 20);
+            btnLogout->Click += gcnew EventHandler(this, &MainForm::Logout_Click);
+            this->Controls->Add(btnLogout);
         }
-        catch (Exception^ ex) {
-            MessageBox::Show("Error: " + ex->Message, "Error", 
-                MessageBoxButtons::OK, MessageBoxIcon::Error);
-        }
-    }
 
-    System::Void btnCancel_Click(System::Object^ sender, System::EventArgs^ e) {
-        this->Close();
-    }
-};
+        void AdminFunction_Click(Object^ sender, EventArgs^ e)
+        {
+            MessageBox::Show("Admin function executed!", "Admin", 
+                MessageBoxButtons::OK, MessageBoxIcon::Information);
+        }
+
+        void Logout_Click(Object^ sender, EventArgs^ e)
+        {
+            this->Close();
+        }
+    };
+}
