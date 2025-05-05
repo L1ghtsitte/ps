@@ -1,136 +1,53 @@
-#pragma once
-
-#include "JsonHelper.h"
-#include "MainForm.h"
-
-namespace LoginSystem {
-
-    using namespace System;
-    using namespace System::ComponentModel;
-    using namespace System::Collections;
-    using namespace System::Windows::Forms;
-    using namespace System::Data;
-    using namespace System::Drawing;
-
-    public ref class MyForm : public System::Windows::Forms::Form
-    {
-    public:
-        MyForm(void)
+private:
+    System::Void btnLogin_Click(System::Object^ sender, System::EventArgs^ e) {
+        if (String::IsNullOrEmpty(txtUsername->Text) || 
+            String::IsNullOrEmpty(txtPassword->Text) || 
+            cmbRole->SelectedItem == nullptr)
         {
-            InitializeComponent();
+            MessageBox::Show("Please fill all fields", "Error", 
+                MessageBoxButtons::OK, MessageBoxIcon::Exclamation);
+            return;
         }
 
-    protected:
-        ~MyForm()
-        {
-            if (components)
+        try {
+            String^ role = cmbRole->SelectedItem->ToString();
+            String^ jsonFile = role + ".json";
+            
+            if (!File::Exists(jsonFile)) {
+                MessageBox::Show("Role configuration not found", "Error", 
+                    MessageBoxButtons::OK, MessageBoxIcon::Error);
+                return;
+            }
+
+            dynamic^ credentials = JsonHelper::DeserializeFromFile(jsonFile);
+            
+            if (txtUsername->Text == credentials["username"]->ToString() && 
+                txtPassword->Text == credentials["password"]->ToString())
             {
-                delete components;
+                // Закрываем текущую форму
+                this->Hide();
+                
+                // Открываем главную форму с передачей уровня доступа
+                MainForm^ mainForm = gcnew MainForm(credentials["access_level"]->ToString());
+                mainForm->ShowDialog();
+                
+                // После закрытия главной формы - закрываем приложение
+                this->Close();
+            }
+            else {
+                MessageBox::Show("Invalid username or password", "Error", 
+                    MessageBoxButtons::OK, MessageBoxIcon::Error);
+                txtPassword->Text = "";
+                txtUsername->Focus();
             }
         }
-
-    private:
-        System::Windows::Forms::Label^ label1;
-        System::Windows::Forms::Label^ label2;
-        System::Windows::Forms::TextBox^ txtUsername;
-        System::Windows::Forms::TextBox^ txtPassword;
-        System::Windows::Forms::Button^ btnLogin;
-        System::Windows::Forms::Button^ btnCancel;
-        System::ComponentModel::Container ^components;
-
-        // Добавьте эти элементы в конструктор формы:
-        System::Windows::Forms::ComboBox^ cmbRole;
-
-        void InitializeComponent(void)
-        {
-            this->label1 = (gcnew System::Windows::Forms::Label());
-            this->label2 = (gcnew System::Windows::Forms::Label());
-            this->txtUsername = (gcnew System::Windows::Forms::TextBox());
-            this->txtPassword = (gcnew System::Windows::Forms::TextBox());
-            this->btnLogin = (gcnew System::Windows::Forms::Button());
-            this->btnCancel = (gcnew System::Windows::Forms::Button());
-            this->cmbRole = (gcnew System::Windows::Forms::ComboBox());
-            this->SuspendLayout();
-            // 
-            // label1
-            // 
-            this->label1->AutoSize = true;
-            this->label1->Location = System::Drawing::Point(30, 30);
-            this->label1->Name = L"label1";
-            this->label1->Size = System::Drawing::Size(58, 13);
-            this->label1->TabIndex = 0;
-            this->label1->Text = L"Username:";
-            // 
-            // label2
-            // 
-            this->label2->AutoSize = true;
-            this->label2->Location = System::Drawing::Point(30, 70);
-            this->label2->Name = L"label2";
-            this->label2->Size = System::Drawing::Size(56, 13);
-            this->label2->TabIndex = 1;
-            this->label2->Text = L"Password:";
-            // 
-            // txtUsername
-            // 
-            this->txtUsername->Location = System::Drawing::Point(100, 27);
-            this->txtUsername->Name = L"txtUsername";
-            this->txtUsername->Size = System::Drawing::Size(150, 20);
-            this->txtUsername->TabIndex = 2;
-            // 
-            // txtPassword
-            // 
-            this->txtPassword->Location = System::Drawing::Point(100, 67);
-            this->txtPassword->Name = L"txtPassword";
-            this->txtPassword->PasswordChar = '*';
-            this->txtPassword->Size = System::Drawing::Size(150, 20);
-            this->txtPassword->TabIndex = 3;
-            // 
-            // btnLogin
-            // 
-            this->btnLogin->Location = System::Drawing::Point(50, 150);
-            this->btnLogin->Name = L"btnLogin";
-            this->btnLogin->Size = System::Drawing::Size(75, 23);
-            this->btnLogin->TabIndex = 4;
-            this->btnLogin->Text = L"Login";
-            this->btnLogin->UseVisualStyleBackColor = true;
-            this->btnLogin->Click += gcnew System::EventHandler(this, &MyForm::btnLogin_Click);
-            // 
-            // btnCancel
-            // 
-            this->btnCancel->Location = System::Drawing::Point(150, 150);
-            this->btnCancel->Name = L"btnCancel";
-            this->btnCancel->Size = System::Drawing::Size(75, 23);
-            this->btnCancel->TabIndex = 5;
-            this->btnCancel->Text = L"Cancel";
-            this->btnCancel->UseVisualStyleBackColor = true;
-            this->btnCancel->Click += gcnew System::EventHandler(this, &MyForm::btnCancel_Click);
-            // 
-            // cmbRole
-            // 
-            this->cmbRole->FormattingEnabled = true;
-            this->cmbRole->Items->AddRange(gcnew cli::array< System::Object^  >(3) {
-                L"admin", L"manager", L"user"
-            });
-            this->cmbRole->Location = System::Drawing::Point(100, 107);
-            this->cmbRole->Name = L"cmbRole";
-            this->cmbRole->Size = System::Drawing::Size(150, 21);
-            this->cmbRole->TabIndex = 6;
-            // 
-            // MyForm
-            // 
-            this->AutoScaleDimensions = System::Drawing::SizeF(6, 13);
-            this->AutoScaleMode = System::Windows::Forms::AutoScaleMode::Font;
-            this->ClientSize = System::Drawing::Size(284, 200);
-            this->Controls->Add(this->cmbRole);
-            this->Controls->Add(this->btnCancel);
-            this->Controls->Add(this->btnLogin);
-            this->Controls->Add(this->txtPassword);
-            this->Controls->Add(this->txtUsername);
-            this->Controls->Add(this->label2);
-            this->Controls->Add(this->label1);
-            this->Name = L"MyForm";
-            this->Text = L"Login System";
-            this->ResumeLayout(false);
-            this->PerformLayout();
-
+        catch (Exception^ ex) {
+            MessageBox::Show("Error: " + ex->Message, "Error", 
+                MessageBoxButtons::OK, MessageBoxIcon::Error);
         }
+    }
+
+    System::Void btnCancel_Click(System::Object^ sender, System::EventArgs^ e) {
+        this->Close();
+    }
+};
