@@ -1,6 +1,7 @@
-// large_form.h
 #pragma once
 
+#include <Windows.h>
+#include "large_form.h"
 #include <string>
 #include <stack>
 #include <cmath>
@@ -15,16 +16,22 @@ namespace crl2stud {
     using namespace System::Data;
     using namespace System::Drawing;
 
-    public ref class large_form : public System::Windows::Forms::Form
+    /// <summary>
+    /// Сводка для main_form
+    /// </summary>
+    public ref class main_form : public System::Windows::Forms::Form
     {
     public:
-        large_form(void)
+        main_form(void)
         {
             InitializeComponent();
         }
 
     protected:
-        ~large_form()
+        /// <summary>
+        /// Освободить все используемые ресурсы.
+        /// </summary>
+        ~main_form()
         {
             if (components)
             {
@@ -32,444 +39,167 @@ namespace crl2stud {
             }
         }
 
+    private: 
+        // ... (keep all your existing button declarations the same)
+
+        private: System::Windows::Forms::Button^ exit_button_main;
+        private: System::Windows::Forms::Label^ result_lable;
+        private: System::Windows::Forms::Button^ negative_pozitive_button;
+        private: System::Windows::Forms::Button^ ttr_button;
+        private: System::Windows::Forms::Button^ division_button;
+        private: System::Windows::Forms::Button^ clear_button;
+        private: System::Windows::Forms::Button^ nine_button;
+        private: System::Windows::Forms::Button^ eight_button;
+        private: System::Windows::Forms::Button^ plus_button;
+        private: System::Windows::Forms::Button^ seven_button;
+        private: System::Windows::Forms::Button^ four_button;
+        private: System::Windows::Forms::Button^ one_button;
+        private: System::Windows::Forms::Button^ six_button;
+        private: System::Windows::Forms::Button^ five_button;
+        private: System::Windows::Forms::Button^ multiplication_button;
+        private: System::Windows::Forms::Button^ three_button;
+        private: System::Windows::Forms::Button^ two_button;
+        private: System::Windows::Forms::Button^ minus_button;
+        private: System::Windows::Forms::Button^ zero_button;
+        private: System::Windows::Forms::Button^ dot_button;
+        private: System::Windows::Forms::Button^ equals_button;
+        private: double first_num;
+        private: char user_action;
+        private: System::Windows::Forms::Button^ large_form_button;
+        private: System::Windows::Forms::Button^ button1;
+
     private:
-        System::Windows::Forms::TextBox^ expressionTextBox;
-        System::Windows::Forms::Button^ calculateButton;
-        System::Windows::Forms::Label^ resultLabel;
-        System::Windows::Forms::Button^ backButton;
+        /// <summary>
+        /// Обязательная переменная конструктора.
+        /// </summary>
         System::ComponentModel::Container^ components;
 
+#pragma region Windows Form Designer generated code
+        /// <summary>
+        /// Требуемый метод для поддержки конструктора — не изменяйте 
+        /// содержимое этого метода с помощью редактора кода.
+        /// </summary>
         void InitializeComponent(void)
         {
-            this->expressionTextBox = gcnew System::Windows::Forms::TextBox();
-            this->calculateButton = gcnew System::Windows::Forms::Button();
-            this->resultLabel = gcnew System::Windows::Forms::Label();
-            this->backButton = gcnew System::Windows::Forms::Button();
-            this->SuspendLayout();
-            
-            // expressionTextBox
-            this->expressionTextBox->Font = gcnew System::Drawing::Font("Microsoft Sans Serif", 14.0F);
-            this->expressionTextBox->Location = System::Drawing::Point(20, 20);
-            this->expressionTextBox->Size = System::Drawing::Size(400, 30);
-            this->expressionTextBox->Name = L"expressionTextBox";
-            
-            // calculateButton
-            this->calculateButton->Location = System::Drawing::Point(20, 70);
-            this->calculateButton->Size = System::Drawing::Size(100, 30);
-            this->calculateButton->Text = L"Calculate";
-            this->calculateButton->Click += gcnew System::EventHandler(this, &large_form::calculateButton_Click);
-            
-            // resultLabel
-            this->resultLabel->Font = gcnew System::Drawing::Font("Microsoft Sans Serif", 14.0F);
-            this->resultLabel->Location = System::Drawing::Point(20, 120);
-            this->resultLabel->Size = System::Drawing::Size(400, 30);
-            this->resultLabel->Name = L"resultLabel";
-            this->resultLabel->Text = L"Result: ";
-            
-            // backButton
-            this->backButton->Location = System::Drawing::Point(150, 70);
-            this->backButton->Size = System::Drawing::Size(100, 30);
-            this->backButton->Text = L"Back";
-            this->backButton->Click += gcnew System::EventHandler(this, &large_form::backButton_Click);
-            
-            // large_form
-            this->ClientSize = System::Drawing::Size(440, 180);
-            this->Controls->Add(this->backButton);
-            this->Controls->Add(this->resultLabel);
-            this->Controls->Add(this->calculateButton);
-            this->Controls->Add(this->expressionTextBox);
-            this->Text = L"Advanced Calculator";
-            this->ResumeLayout(false);
-            this->PerformLayout();
+            // ... (keep all your existing InitializeComponent code the same)
         }
+#pragma endregion
 
-    private:
-        System::Void calculateButton_Click(System::Object^ sender, System::EventArgs^ e)
-        {
-            String^ expression = expressionTextBox->Text;
-            std::string stdExpression = msclr::interop::marshal_as<std::string>(expression);
-            
-            try {
-                double result = EvaluateExpression(stdExpression);
-                resultLabel->Text = "Result: " + result.ToString();
-            }
-            catch (Exception^ ex) {
-                resultLabel->Text = "Error: " + ex->Message;
-            }
-        }
-
-        System::Void backButton_Click(System::Object^ sender, System::EventArgs^ e)
+    private: 
+        System::Void exit_button_main_Click(System::Object^ sender, System::EventArgs^ e)
         {
             this->Close();
         }
 
-        double EvaluateExpression(const std::string& expression)
+        System::Void button_number_choise(System::Object^ sender, System::EventArgs^ e)
         {
-            std::stack<double> numbers;
-            std::stack<char> ops;
-            
-            for (size_t i = 0; i < expression.length(); i++) {
-                if (expression[i] == ' ') continue;
-                
-                if (expression[i] == '(') {
-                    ops.push(expression[i]);
-                }
-                else if (isdigit(expression[i]) {
-                    double num = 0;
-                    while (i < expression.length() && isdigit(expression[i])) {
-                        num = num * 10 + (expression[i] - '0');
-                        i++;
-                    }
-                    
-                    if (i < expression.length() && expression[i] == '.') {
-                        i++;
-                        double fraction = 0.1;
-                        while (i < expression.length() && isdigit(expression[i])) {
-                            num += (expression[i] - '0') * fraction;
-                            fraction *= 0.1;
-                            i++;
-                        }
-                    }
-                    
-                    numbers.push(num);
-                    i--;
-                }
-                else if (expression[i] == '-' && (i == 0 || expression[i-1] == '(' || 
-                         expression[i-1] == '+' || expression[i-1] == '-' || 
-                         expression[i-1] == '*' || expression[i-1] == '/')) {
-                    // Handle negative numbers
-                    i++;
-                    double num = 0;
-                    bool hasFraction = false;
-                    double fraction = 0.1;
-                    
-                    while (i < expression.length() && (isdigit(expression[i]) || expression[i] == '.')) {
-                        if (expression[i] == '.') {
-                            hasFraction = true;
-                            i++;
-                            continue;
-                        }
-                        
-                        if (!hasFraction) {
-                            num = num * 10 + (expression[i] - '0');
-                        } else {
-                            num += (expression[i] - '0') * fraction;
-                            fraction *= 0.1;
-                        }
-                        i++;
-                    }
-                    
-                    numbers.push(-num);
-                    i--;
-                }
-                else if (expression[i] == ')') {
-                    while (!ops.empty() && ops.top() != '(') {
-                        double val2 = numbers.top();
-                        numbers.pop();
-                        
-                        double val1 = numbers.top();
-                        numbers.pop();
-                        
-                        char op = ops.top();
-                        ops.pop();
-                        
-                        numbers.push(ApplyOp(val1, val2, op));
-                    }
-                    
-                    if (!ops.empty())
-                        ops.pop();
-                }
-                else {
-                    while (!ops.empty() && Precedence(ops.top()) >= Precedence(expression[i])) {
-                        double val2 = numbers.top();
-                        numbers.pop();
-                        
-                        double val1 = numbers.top();
-                        numbers.pop();
-                        
-                        char op = ops.top();
-                        ops.pop();
-                        
-                        numbers.push(ApplyOp(val1, val2, op));
-                    }
-                    
-                    ops.push(expression[i]);
-                }
-            }
-            
-            while (!ops.empty()) {
-                double val2 = numbers.top();
-                numbers.pop();
-                
-                double val1 = numbers.top();
-                numbers.pop();
-                
-                char op = ops.top();
-                ops.pop();
-                
-                numbers.push(ApplyOp(val1, val2, op));
-            }
-            
-            return numbers.top();
+            Button^ button = safe_cast<Button^>(sender);
+
+            if (this->result_lable->Text == "0")
+                this->result_lable->Text = button->Text;
+            else
+                this->result_lable->Text += button->Text;
         }
 
-        int Precedence(char op)
+        System::Void plus_button_Click(System::Object^ sender, System::EventArgs^ e)
         {
-            if (op == '+' || op == '-')
-                return 1;
-            if (op == '*' || op == '/')
-                return 2;
-            return 0;
+            math_action('+');
         }
 
-        double ApplyOp(double a, double b, char op)
+        System::Void minus_button_Click(System::Object^ sender, System::EventArgs^ e)
         {
-            switch (op) {
-                case '+': return a + b;
-                case '-': return a - b;
-                case '*': return a * b;
-                case '/': 
-                    if (b == 0) throw gcnew System::DivideByZeroException("Division by zero");
-                    return a / b;
-            }
-            return 0;
-        }
-    };
-}// large_form.h
-#pragma once
-
-#include <string>
-#include <stack>
-#include <cmath>
-#include <algorithm>
-
-namespace crl2stud {
-
-    using namespace System;
-    using namespace System::ComponentModel;
-    using namespace System::Collections;
-    using namespace System::Windows::Forms;
-    using namespace System::Data;
-    using namespace System::Drawing;
-
-    public ref class large_form : public System::Windows::Forms::Form
-    {
-    public:
-        large_form(void)
-        {
-            InitializeComponent();
+            math_action('-');
         }
 
-    protected:
-        ~large_form()
+        System::Void multiplication_button_Click(System::Object^ sender, System::EventArgs^ e)
         {
-            if (components)
+            math_action('*');
+        }
+
+        System::Void division_button_Click(System::Object^ sender, System::EventArgs^ e)
+        {
+            math_action('/');
+        }
+
+        System::Void math_action(char action)
+        {
+            this->first_num = System::Convert::ToDouble(this->result_lable->Text);
+            this->user_action = action;
+            this->result_lable->Text = "0";
+        }
+
+        System::Void equals_button_Click(System::Object^ sender, System::EventArgs^ e)
+        {
+            double second_num;
+            double result;
+
+            second_num = System::Convert::ToDouble(this->result_lable->Text);
+            result = 1;
+
+            switch (this->user_action)
             {
-                delete components;
+            case '+':
+            {
+                result = this->first_num + second_num;
+                break;
+            }
+            case '-':
+            {
+                result = this->first_num - second_num;
+                break;
+            }
+            case '*':
+            {
+                result = this->first_num * second_num;
+                break;
+            }
+            case '/':
+            {
+                result = this->first_num / second_num;
+                break;
+            }
+            }
+
+            this->result_lable->Text = System::Convert::ToString(result);
+        }
+
+        System::Void large_form_button_Click(System::Object^ sender, System::EventArgs^ e)
+        {
+            large_form^ large_form1 = gcnew large_form();
+            large_form1->Show();
+            this->Hide();
+        }
+
+        System::Void button1_Click(System::Object^ sender, System::EventArgs^ e) 
+        {
+            System::Diagnostics::Process::Start("https://github.com/L1ghtsitte/calculator");
+        }
+
+        System::Void clear_button_Click(System::Object^ sender, System::EventArgs^ e)
+        {
+            this->result_lable->Text = "0";
+            this->first_num = 0;
+            this->user_action = '\0';
+        }
+
+        System::Void negative_pozitive_button_Click(System::Object^ sender, System::EventArgs^ e)
+        {
+            if (this->result_lable->Text->StartsWith("-"))
+            {
+                this->result_lable->Text = this->result_lable->Text->Substring(1);
+            }
+            else
+            {
+                this->result_lable->Text = "-" + this->result_lable->Text;
             }
         }
 
-    private:
-        System::Windows::Forms::TextBox^ expressionTextBox;
-        System::Windows::Forms::Button^ calculateButton;
-        System::Windows::Forms::Label^ resultLabel;
-        System::Windows::Forms::Button^ backButton;
-        System::ComponentModel::Container^ components;
-
-        void InitializeComponent(void)
+        System::Void dot_button_Click(System::Object^ sender, System::EventArgs^ e)
         {
-            this->expressionTextBox = gcnew System::Windows::Forms::TextBox();
-            this->calculateButton = gcnew System::Windows::Forms::Button();
-            this->resultLabel = gcnew System::Windows::Forms::Label();
-            this->backButton = gcnew System::Windows::Forms::Button();
-            this->SuspendLayout();
-            
-            // expressionTextBox
-            this->expressionTextBox->Font = gcnew System::Drawing::Font("Microsoft Sans Serif", 14.0F);
-            this->expressionTextBox->Location = System::Drawing::Point(20, 20);
-            this->expressionTextBox->Size = System::Drawing::Size(400, 30);
-            this->expressionTextBox->Name = L"expressionTextBox";
-            
-            // calculateButton
-            this->calculateButton->Location = System::Drawing::Point(20, 70);
-            this->calculateButton->Size = System::Drawing::Size(100, 30);
-            this->calculateButton->Text = L"Calculate";
-            this->calculateButton->Click += gcnew System::EventHandler(this, &large_form::calculateButton_Click);
-            
-            // resultLabel
-            this->resultLabel->Font = gcnew System::Drawing::Font("Microsoft Sans Serif", 14.0F);
-            this->resultLabel->Location = System::Drawing::Point(20, 120);
-            this->resultLabel->Size = System::Drawing::Size(400, 30);
-            this->resultLabel->Name = L"resultLabel";
-            this->resultLabel->Text = L"Result: ";
-            
-            // backButton
-            this->backButton->Location = System::Drawing::Point(150, 70);
-            this->backButton->Size = System::Drawing::Size(100, 30);
-            this->backButton->Text = L"Back";
-            this->backButton->Click += gcnew System::EventHandler(this, &large_form::backButton_Click);
-            
-            // large_form
-            this->ClientSize = System::Drawing::Size(440, 180);
-            this->Controls->Add(this->backButton);
-            this->Controls->Add(this->resultLabel);
-            this->Controls->Add(this->calculateButton);
-            this->Controls->Add(this->expressionTextBox);
-            this->Text = L"Advanced Calculator";
-            this->ResumeLayout(false);
-            this->PerformLayout();
-        }
-
-    private:
-        System::Void calculateButton_Click(System::Object^ sender, System::EventArgs^ e)
-        {
-            String^ expression = expressionTextBox->Text;
-            std::string stdExpression = msclr::interop::marshal_as<std::string>(expression);
-            
-            try {
-                double result = EvaluateExpression(stdExpression);
-                resultLabel->Text = "Result: " + result.ToString();
+            if (!this->result_lable->Text->Contains("."))
+            {
+                this->result_lable->Text += ".";
             }
-            catch (Exception^ ex) {
-                resultLabel->Text = "Error: " + ex->Message;
-            }
-        }
-
-        System::Void backButton_Click(System::Object^ sender, System::EventArgs^ e)
-        {
-            this->Close();
-        }
-
-        double EvaluateExpression(const std::string& expression)
-        {
-            std::stack<double> numbers;
-            std::stack<char> ops;
-            
-            for (size_t i = 0; i < expression.length(); i++) {
-                if (expression[i] == ' ') continue;
-                
-                if (expression[i] == '(') {
-                    ops.push(expression[i]);
-                }
-                else if (isdigit(expression[i]) {
-                    double num = 0;
-                    while (i < expression.length() && isdigit(expression[i])) {
-                        num = num * 10 + (expression[i] - '0');
-                        i++;
-                    }
-                    
-                    if (i < expression.length() && expression[i] == '.') {
-                        i++;
-                        double fraction = 0.1;
-                        while (i < expression.length() && isdigit(expression[i])) {
-                            num += (expression[i] - '0') * fraction;
-                            fraction *= 0.1;
-                            i++;
-                        }
-                    }
-                    
-                    numbers.push(num);
-                    i--;
-                }
-                else if (expression[i] == '-' && (i == 0 || expression[i-1] == '(' || 
-                         expression[i-1] == '+' || expression[i-1] == '-' || 
-                         expression[i-1] == '*' || expression[i-1] == '/')) {
-                    // Handle negative numbers
-                    i++;
-                    double num = 0;
-                    bool hasFraction = false;
-                    double fraction = 0.1;
-                    
-                    while (i < expression.length() && (isdigit(expression[i]) || expression[i] == '.')) {
-                        if (expression[i] == '.') {
-                            hasFraction = true;
-                            i++;
-                            continue;
-                        }
-                        
-                        if (!hasFraction) {
-                            num = num * 10 + (expression[i] - '0');
-                        } else {
-                            num += (expression[i] - '0') * fraction;
-                            fraction *= 0.1;
-                        }
-                        i++;
-                    }
-                    
-                    numbers.push(-num);
-                    i--;
-                }
-                else if (expression[i] == ')') {
-                    while (!ops.empty() && ops.top() != '(') {
-                        double val2 = numbers.top();
-                        numbers.pop();
-                        
-                        double val1 = numbers.top();
-                        numbers.pop();
-                        
-                        char op = ops.top();
-                        ops.pop();
-                        
-                        numbers.push(ApplyOp(val1, val2, op));
-                    }
-                    
-                    if (!ops.empty())
-                        ops.pop();
-                }
-                else {
-                    while (!ops.empty() && Precedence(ops.top()) >= Precedence(expression[i])) {
-                        double val2 = numbers.top();
-                        numbers.pop();
-                        
-                        double val1 = numbers.top();
-                        numbers.pop();
-                        
-                        char op = ops.top();
-                        ops.pop();
-                        
-                        numbers.push(ApplyOp(val1, val2, op));
-                    }
-                    
-                    ops.push(expression[i]);
-                }
-            }
-            
-            while (!ops.empty()) {
-                double val2 = numbers.top();
-                numbers.pop();
-                
-                double val1 = numbers.top();
-                numbers.pop();
-                
-                char op = ops.top();
-                ops.pop();
-                
-                numbers.push(ApplyOp(val1, val2, op));
-            }
-            
-            return numbers.top();
-        }
-
-        int Precedence(char op)
-        {
-            if (op == '+' || op == '-')
-                return 1;
-            if (op == '*' || op == '/')
-                return 2;
-            return 0;
-        }
-
-        double ApplyOp(double a, double b, char op)
-        {
-            switch (op) {
-                case '+': return a + b;
-                case '-': return a - b;
-                case '*': return a * b;
-                case '/': 
-                    if (b == 0) throw gcnew System::DivideByZeroException("Division by zero");
-                    return a / b;
-            }
-            return 0;
         }
     };
 }
