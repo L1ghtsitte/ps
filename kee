@@ -1,78 +1,285 @@
-#include <iostream>
-#include <fstream>
-#include <string>
-#include <vector>
+import os
+import json
+import time
+from datetime import datetime, date
+from PIL import Image, ImageDraw, ImageFont
+from io import BytesIO
+import telebot
+from telebot import types
 
-using namespace std;
+# Настройки бота
+TOKEN = '8022336822:AAE8WPXUVQaSldDq6S84GhdPHtXqwZ-399A'
+bot = telebot.TeleBot(TOKEN)
 
-// Жёстко прописанные тестовые файлы
-const vector<string> TEST_FILES = {
-    "test1.txt",
-    "test2.txt",
-    "contacts.csv",
-    "data.txt"
-};
+# Файл для хранения данных пользователей
+USERS_FILE = 'users.json'
 
-// Структура для результатов поиска
-struct SearchResult {
-    string filename;
-    int line_number;
-    string line_content;
-};
+# Шрифты (укажите пути к своим шрифтам или используйте стандартные)
+FONT_PATH = 'arial.ttf'  # Замените на путь к вашему шрифту
+BACKGROUND_IMAGE = 'logo.jpg'  # Замените на путь к вашему фону
 
-// Функция поиска в файле
-vector<SearchResult> searchInFile(const string& filename, const string& searchText) {
-    vector<SearchResult> results;
-    ifstream file(filename);
-    
-    if (!file.is_open()) {
-        cerr << "Ошибка! Файл не найден: " << filename << endl;
-        return results;
+
+# Загрузка или создание файла с пользователями
+def load_users():
+    # Если файла нет - возвращаем пустой словарь
+    if not os.path.exists(USERS_FILE):
+        return {}
+
+    # Если файл пустой - возвращаем пустой словарь
+    if os.path.getsize(USERS_FILE) == 0:
+        return {}
+
+    # Пытаемся прочитать файл
+    try:
+        with open(USERS_FILE, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except (json.JSONDecodeError, IOError):
+        # Если ошибка чтения - возвращаем пустой словарь
+        return {}
+
+
+def save_users(users):
+    try:
+        with open(USERS_FILE, 'w', encoding='utf-8') as f:
+            json.dump(users, f, ensure_ascii=False, indent=4)
+        return True
+    except IOError as e:
+        print(f"Ошибка сохранения: {e}")
+        return False
+
+
+users = load_users()
+
+
+# Команда /start
+@bot.message_handler(commands=['start'])
+def start(message):
+    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    if str(message.from_user.id) in users:
+        btn1 = types.KeyboardButton("Мой профиль")
+        btn2 = types.KeyboardButton("Помощь")
+        markup.add(btn1, btn2)
+        bot.send_message(message.chat.id, "С возвращением! Что вы хотите сделать?", reply_markup=markup)
+    else:
+        btn1 = types.KeyboardButton("Регистрация")
+        markup.add(btn1)
+        bot.send_message(message.chat.id, "Привет! Я бот для регистрации. Нажмите кнопку 'Регистрация' чтобы начать.",
+                         reply_markup=markup)
+
+
+# Обработка кнопки "Регистрация"
+@bot.message_handler(func=lambda message: message.text == "Регистрация")
+def registration_start(message):
+    if str(message.from_user.id) in users:
+        bot.send_message(message.chat.id, "Вы уже зарегистрированы!")
+        return
+
+    msg = bot.send_message(message.chat.id, "Введите ваше ФИО:")
+    bot.register_next_step_handler(msg, process_fio_step)
+
+
+def process_fio_step(message):
+    user_id = str(message.from_user.id)
+    users[user_id] = {
+        'username': message.from_user.username,
+        'fio': message.text,
+        'avatar': None
     }
 
-    string line;
-    int lineNum = 1;
-    
-    while (getline(file, line)) {
-        if (line.find(searchText) != string::npos) {
-            results.push_back({filename, lineNum, line});
-        }
-        lineNum++;
-    }
-    
-    return results;
-}
+    msg = bot.send_message(message.chat.id, "Введите вашу дату рождения в формате ДД.ММ.ГГГГ (например, 01.01.2000):")
+    bot.register_next_step_handler(msg, process_birthday_step)
 
-int main() {
-    cout << "Программа поиска в предустановленных файлах\n";
-    
-    string searchText;
-    cout << "Введите текст для поиска (номер/email): ";
-    getline(cin, searchText);
 
-    vector<SearchResult> allResults;
-    
-    // Поиск по всем указанным файлам
-    for (const auto& filename : TEST_FILES) {
-        auto results = searchInFile(filename, searchText);
-        allResults.insert(allResults.end(), results.begin(), results.end());
-    }
+def process_birthday_step(message):
+    user_id = str(message.from_user.id)
+    try:
+        birthday = datetime.strptime(message.text, "%d.%m.%Y").date()
+        users[user_id]['birthday'] = message.text
+        users[user_id]['age'] = calculate_age(birthday)
 
-    // Сохранение результатов
-    ofstream out("results.txt");
-    out << "Результаты поиска для: " << searchText << "\n\n";
-    
-    if (allResults.empty()) {
-        out << "Совпадений не найдено.\n";
-        cout << "Совпадений не найдено.\n";
-    } else {
-        out << "Найдено " << allResults.size() << " совпадений:\n\n";
-        for (const auto& result : allResults) {
-            out << "Файл: " << result.filename << "\n";
-            out << "Строка " << result.line_number << ": " << result.line_content << "\n\n";
-        }
-        cout << "Найдено " << allResults.size() << " совпадений. См. results.txt\n";
-    }
+        msg = bot.send_message(message.chat.id, "Отправьте вашу аватарку (фото):")
+        bot.register_next_step_handler(msg, process_avatar_step)
+    except ValueError:
+        msg = bot.send_message(message.chat.id, "Неправильный формат даты. Попробуйте еще раз в формате ДД.ММ.ГГГГ:")
+        bot.register_next_step_handler(msg, process_birthday_step)
 
-    return 0;
-}
+
+def process_avatar_step(message):
+    user_id = str(message.from_user.id)
+    try:
+        if message.content_type == 'photo':
+            # Берем последнее (самое большое) фото из списка
+            file_id = message.photo[-1].file_id
+            file_info = bot.get_file(file_id)
+            downloaded_file = bot.download_file(file_info.file_path)
+
+            # Сохраняем аватар
+            avatar_path = f"avatars/{user_id}.jpg"
+            os.makedirs("avatars", exist_ok=True)
+            with open(avatar_path, 'wb') as new_file:
+                new_file.write(downloaded_file)
+
+            users[user_id]['avatar'] = avatar_path
+            save_users(users)
+
+            markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+            btn1 = types.KeyboardButton("Мой профиль")
+            btn2 = types.KeyboardButton("Помощь")
+            markup.add(btn1, btn2)
+
+            bot.send_message(message.chat.id, "Регистрация завершена!", reply_markup=markup)
+        else:
+            msg = bot.send_message(message.chat.id, "Пожалуйста, отправьте фото.")
+            bot.register_next_step_handler(msg, process_avatar_step)
+    except Exception as e:
+        bot.send_message(message.chat.id, f"Произошла ошибка: {e}")
+
+
+# Команда /help
+@bot.message_handler(commands=['help'])
+@bot.message_handler(func=lambda message: message.text == "Помощь")
+def help(message):
+    help_text = """
+        Доступные команды:
+        /start - Начать работу с ботом
+        /help - Помощь
+        /profile - Мой профиль
+        /generate - Сгенерировать картинку профиля
+        /custom - Пример пользовательской команды
+        """
+    bot.send_message(message.chat.id, help_text)
+
+
+# Пользовательская команда
+@bot.message_handler(commands=['custom'])
+def custom_command(message):
+    bot.send_message(message.chat.id, "Это пример пользовательской команды. Вы можете изменить ее под свои нужды.")
+
+
+# Показать профиль
+@bot.message_handler(commands=['profile'])
+@bot.message_handler(func=lambda message: message.text == "Мой профиль")
+def show_profile(message):
+    user_id = str(message.from_user.id)
+    if user_id not in users:
+        bot.send_message(message.chat.id, "Вы не зарегистрированы. Нажмите 'Регистрация'.")
+        return
+
+    user = users[user_id]
+    profile_text = f"""
+        Ваш профиль:
+        Юзернейм: @{user['username']}
+        ФИО: {user['fio']}
+        Дата рождения: {user['birthday']}
+        Возраст: {user['age']}
+        """
+
+    if user['avatar']:
+        try:
+            with open(user['avatar'], 'rb') as photo:
+                bot.send_photo(message.chat.id, photo, caption=profile_text)
+        except:
+            bot.send_message(message.chat.id, profile_text)
+    else:
+        bot.send_message(message.chat.id, profile_text)
+
+
+# Генерация картинки
+@bot.message_handler(commands=['generate'])
+def generate_image(message):
+    user_id = str(message.from_user.id)
+    if user_id not in users:
+        bot.send_message(message.chat.id, "Вы не зарегистрированы. Нажмите 'Регистрация'.")
+        return
+
+    user = users[user_id]
+    try:
+        # Создаем изображение
+        img = generate_profile_image(user)
+
+        # Отправляем изображение
+        with BytesIO() as output:
+            img.save(output, format="JPEG")
+            output.seek(0)
+            bot.send_photo(message.chat.id, output)
+    except Exception as e:
+        bot.send_message(message.chat.id, f"Ошибка при генерации изображения: {e}")
+
+
+def generate_profile_image(user):
+    # Загрузка фона (или создание белого фона, если файл не найден)
+    try:
+        bg = Image.open(BACKGROUND_IMAGE).convert('RGB')
+    except:
+        bg = Image.new('RGB', (800, 600), color=(255, 255, 255))
+
+    draw = ImageDraw.Draw(bg)
+
+    # Загрузка шрифтов
+    try:
+        font_large = ImageFont.truetype(FONT_PATH, 40)
+        font_medium = ImageFont.truetype(FONT_PATH, 30)
+        font_small = ImageFont.truetype(FONT_PATH, 20)
+    except:
+        # Используем стандартный шрифт, если указанный не найден
+        font_large = ImageFont.load_default()
+        font_medium = ImageFont.load_default()
+        font_small = ImageFont.load_default()
+
+    # Добавление аватарки (справа)
+    if user['avatar'] and os.path.exists(user['avatar']):
+        avatar = Image.open(user['avatar'])
+        avatar = avatar.resize((200, 200))
+        bg.paste(avatar, (bg.width - 250, 50))
+
+    # Добавление текста (слева)
+    text_x = 50
+    text_y = 50
+
+    # Юзернейм
+    username = f"@{user['username']}" if user['username'] else "Без юзернейма"
+    draw.text((text_x, text_y), username, font=font_large, fill=(0, 0, 0))
+    text_y += 60
+
+    # ФИО
+    draw.text((text_x, text_y), user['fio'], font=font_medium, fill=(0, 0, 0))
+    text_y += 50
+
+    # Возраст
+    draw.text((text_x, text_y), f"Возраст: {user['age']}", font=font_medium, fill=(0, 0, 0))
+    text_y += 50
+
+    # Дни до дня рождения
+    birthday = datetime.strptime(user['birthday'], "%d.%m.%Y").date()
+    days_left = days_until_birthday(birthday)
+    draw.text((text_x, text_y), f"До дня рождения: {days_left} дней", font=font_small, fill=(0, 0, 0))
+
+    return bg
+
+
+# Вспомогательные функции
+def calculate_age(birthday):
+    today = date.today()
+    age = today.year - birthday.year - ((today.month, today.day) < (birthday.month, birthday.day))
+    return age
+
+
+def days_until_birthday(birthday):
+    today = date.today()
+    next_birthday = date(today.year, birthday.month, birthday.day)
+
+    if next_birthday < today:
+        next_birthday = date(today.year + 1, birthday.month, birthday.day)
+
+    return (next_birthday - today).days
+
+# Запуск бота
+if __name__ == 'main':
+    print("Бот запускается...")
+    print("Запуск бота...")
+    while True:
+        try:
+            bot.polling(none_stop=True, interval=2)
+        except Exception as e:
+            print(f"Ошибка: {e}. Перезапуск через 5 сек...")
+            time.sleep(5)
