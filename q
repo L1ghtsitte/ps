@@ -3,7 +3,7 @@ import json
 import random
 import math
 from datetime import datetime, date, timedelta
-from PIL import Image, ImageDraw, ImageFont, ImageOps, ImageColor
+from PIL import Image, ImageDraw, ImageFont, ImageOps
 from io import BytesIO
 import telebot
 from telebot import types
@@ -11,15 +11,16 @@ import threading
 import time
 
 # Настройки бота
-TOKEN = 'ВАШ_ТОКЕН'
+TOKEN = 'ВАШ_ТЕЛЕГРАМ_ТОКЕН'
 bot = telebot.TeleBot(TOKEN)
 
-# Файл для хранения данных пользователей
+# Конфигурация
 USERS_FILE = 'users.json'
 IMAGE_SIZE = (1980, 1080)
-AVATAR_SIZE = 300  # Размер аватарки в пикселях
+AVATAR_SIZE = 400  # Размер круглой аватарки
+BASE_FONT_RATIO = 0.15  # 15% от высоты изображения
 
-# Загрузка или создание файла с пользователями
+# Загрузка данных пользователей
 def load_users():
     if not os.path.exists(USERS_FILE):
         return {}
@@ -37,22 +38,15 @@ users = load_users()
 
 # Генерация градиентного фона
 def generate_gradient_background(size, num_colors=3):
-    """Генерирует градиентный фон с указанным количеством цветов"""
-    # Генерируем случайные тёмные цвета
+    """Создает вертикальный градиент с темными цветами"""
     colors = []
     for _ in range(num_colors):
-        r = random.randint(0, 150)
-        g = random.randint(0, 150)
-        b = random.randint(0, 150)
-        colors.append((r, g, b))
+        colors.append((random.randint(0, 150), random.randint(0, 150), random.randint(0, 150)))
     
-    # Создаём новое изображение
     img = Image.new('RGB', size)
     draw = ImageDraw.Draw(img)
     
-    # Рисуем градиент
     for i in range(size[1]):
-        # Вычисляем текущий цвет на основе позиции
         pos = i / size[1]
         color_idx = pos * (len(colors) - 1)
         idx1 = int(math.floor(color_idx))
@@ -69,37 +63,86 @@ def generate_gradient_background(size, num_colors=3):
 
 # Создание круглой аватарки
 def make_circular_avatar(image_path):
-    with Image.open(image_path) as img:
-        img = img.resize((AVATAR_SIZE, AVATAR_SIZE))
-        
-        # Создаем маску для круглого изображения
-        mask = Image.new('L', (AVATAR_SIZE, AVATAR_SIZE), 0)
-        draw = ImageDraw.Draw(mask)
-        draw.ellipse((0, 0, AVATAR_SIZE, AVATAR_SIZE), fill=255)
-        
-        # Применяем маску
-        output = ImageOps.fit(img, mask.size, centering=(0.5, 0.5))
-        output.putalpha(mask)
-        
-        return output
+    img = Image.open(image_path).resize((AVATAR_SIZE, AVATAR_SIZE))
+    mask = Image.new('L', (AVATAR_SIZE, AVATAR_SIZE), 0)
+    ImageDraw.Draw(mask).ellipse((0, 0, AVATAR_SIZE, AVATAR_SIZE), fill=255)
+    output = ImageOps.fit(img, mask.size, centering=(0.5, 0.5))
+    output.putalpha(mask)
+    return output
 
-# Команда /start
+# Генерация изображения профиля
+def generate_profile_image(user):
+    # Создаем фон
+    img, colors = generate_gradient_background(IMAGE_SIZE, random.randint(3, 5))
+    draw = ImageDraw.Draw(img)
+    
+    # Настраиваем шрифты
+    base_font_size = int(IMAGE_SIZE[1] * BASE_FONT_RATIO)
+    try:
+        font_large = ImageFont.truetype("arial.ttf", int(base_font_size * 0.7))
+        font_medium = ImageFont.truetype("arial.ttf", int(base_font_size * 0.5))
+        font_small = ImageFont.truetype("arial.ttf", int(base_font_size * 0.3))
+    except:
+        font_large = ImageFont.load_default(size=int(base_font_size * 0.7))
+        font_medium = ImageFont.load_default(size=int(base_font_size * 0.5))
+        font_small = ImageFont.load_default(size=int(base_font_size * 0.3))
+
+    # Добавляем аватар
+    if user['avatar'] and os.path.exists(user['avatar']):
+        avatar = make_circular_avatar(user['avatar'])
+        img.paste(avatar, ((IMAGE_SIZE[0] - AVATAR_SIZE) // 2, int(IMAGE_SIZE[1] * 0.05)), avatar)
+
+    # Функция для центрирования текста
+    def draw_centered_text(y, text, font, fill=(255, 255, 255)):
+        bbox = draw.textbbox((0, 0), text, font=font)
+        w, h = bbox[2] - bbox[0], bbox[3] - bbox[1]
+        draw.text(((IMAGE_SIZE[0] - w) // 2, y), text, font=font, fill=fill)
+        return y + h
+
+    # Рисуем текст
+    y_pos = int(IMAGE_SIZE[1] * 0.05) + AVATAR_SIZE + int(IMAGE_SIZE[1] * 0.05)
+    
+    username = f"@{user['username']}" if user['username'] else "Без юзернейма"
+    y_pos = draw_centered_text(y_pos, username, font_large) + int(IMAGE_SIZE[1] * 0.03)
+    y_pos = draw_centered_text(y_pos, user['fio'], font_medium) + int(IMAGE_SIZE[1] * 0.02)
+    y_pos = draw_centered_text(y_pos, f"Возраст: {user['age']}", font_medium) + int(IMAGE_SIZE[1] * 0.02)
+    
+    birthday = datetime.strptime(user['birthday'], "%d.%m.%Y").date()
+    days_left = days_until_birthday(birthday)
+    days_text = "С ДНЕМ РОЖДЕНИЯ!" if days_left == 0 else f"До дня рождения: {days_left} дней"
+    y_pos = draw_centered_text(y_pos, days_text, font_medium)
+    
+    # Добавляем палитру цветов
+    palette = " | ".join([f"#{r:02x}{g:02x}{b:02x}" for r, g, b in colors])
+    draw_centered_text(IMAGE_SIZE[1] - int(base_font_size * 0.4), f"Цвета фона: {palette}", font_small)
+    
+    return img
+
+# Вспомогательные функции
+def calculate_age(birthday):
+    today = date.today()
+    return today.year - birthday.year - ((today.month, today.day) < (birthday.month, birthday.day))
+
+def days_until_birthday(birthday):
+    today = date.today()
+    next_bday = date(today.year, birthday.month, birthday.day)
+    if next_bday < today:
+        next_bday = date(today.year + 1, birthday.month, birthday.day)
+    return (next_bday - today).days
+
+# Команды бота
 @bot.message_handler(commands=['start'])
 def start(message):
-    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
     user_id = str(message.from_user.id)
+    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
     
     if user_id in users:
-        btn1 = types.KeyboardButton("Мой профиль")
-        btn2 = types.KeyboardButton("Редактировать профиль")
-        btn3 = types.KeyboardButton("Настройки уведомлений")
-        btn4 = types.KeyboardButton("Удалить профиль")
-        markup.add(btn1, btn2, btn3, btn4)
+        buttons = ["Мой профиль", "Редактировать профиль", "Настройки уведомлений", "Удалить профиль"]
+        markup.add(*buttons)
         bot.send_message(message.chat.id, "С возвращением! Что вы хотите сделать?", reply_markup=markup)
     else:
-        btn1 = types.KeyboardButton("Регистрация")
-        markup.add(btn1)
-        bot.send_message(message.chat.id, "Привет! Я бот для учета дней до дня рождения. Нажмите 'Регистрация' чтобы начать.", reply_markup=markup)
+        markup.add("Регистрация")
+        bot.send_message(message.chat.id, "Привет! Я бот для учета дней до дня рождения.", reply_markup=markup)
 
 # Удаление профиля
 @bot.message_handler(func=lambda message: message.text == "Удалить профиль")
@@ -110,171 +153,51 @@ def delete_profile(message):
         return
     
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    btn1 = types.KeyboardButton("Да, удалить")
-    btn2 = types.KeyboardButton("Нет, отмена")
-    markup.add(btn1, btn2)
-    
-    bot.send_message(message.chat.id, "Вы уверены, что хотите удалить свой профиль? Это действие нельзя отменить.", reply_markup=markup)
-    bot.register_next_step_handler(message, confirm_delete_profile)
+    markup.add("Да, удалить", "Нет, отмена")
+    bot.send_message(message.chat.id, "Вы уверены? Это действие нельзя отменить!", reply_markup=markup)
+    bot.register_next_step_handler(message, process_delete_confirmation)
 
-def confirm_delete_profile(message):
+def process_delete_confirmation(message):
     user_id = str(message.from_user.id)
     if message.text == "Да, удалить":
-        # Удаляем аватар если существует
         if users[user_id]['avatar'] and os.path.exists(users[user_id]['avatar']):
             try:
                 os.remove(users[user_id]['avatar'])
             except:
                 pass
         
-        # Удаляем пользователя из базы
         del users[user_id]
         save_users(users)
-        
-        markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-        btn1 = types.KeyboardButton("Регистрация")
-        markup.add(btn1)
-        
-        bot.send_message(message.chat.id, "Ваш профиль был успешно удалён.", reply_markup=markup)
+        bot.send_message(message.chat.id, "Ваш профиль удален.", reply_markup=types.ReplyKeyboardRemove())
     else:
         start(message)
-
-# Генерация и отправка профиля
-def generate_and_send_profile(chat_id, user_id):
-    if user_id not in users:
-        return
-    
-    user = users[user_id]
-    try:
-        img, colors = generate_profile_image(user)
-        with BytesIO() as output:
-            img.save(output, format="JPEG")
-            output.seek(0)
-            bot.send_photo(chat_id, output)
-    except Exception as e:
-        bot.send_message(chat_id, f"Ошибка генерации профиля: {e}")
-
-def generate_profile_image(user):
-    # Создаем градиентный фон (3-5 случайных цветов)
-    num_colors = random.randint(3, 5)
-    img, colors = generate_gradient_background(IMAGE_SIZE, num_colors)
-    draw = ImageDraw.Draw(img)
-    
-    # Вычисляем размер шрифта (15% от высоты изображения)
-    base_font_size = int(IMAGE_SIZE[1] * 0.15)
-    
-    try:
-        # Загружаем шрифты с адаптивными размерами
-        font_large = ImageFont.truetype("arial.ttf", int(base_font_size * 0.7))
-        font_medium = ImageFont.truetype("arial.ttf", int(base_font_size * 0.5))
-        font_small = ImageFont.truetype("arial.ttf", int(base_font_size * 0.3))
-    except:
-        # Если шрифты не найдены, используем стандартные с адаптивным размером
-        font_large = ImageFont.load_default(size=int(base_font_size * 0.7))
-        font_medium = ImageFont.load_default(size=int(base_font_size * 0.5))
-        font_small = ImageFont.load_default(size=int(base_font_size * 0.3))
-    
-    # Добавляем круглую аватарку (по центру сверху)
-    if user['avatar'] and os.path.exists(user['avatar']):
-        avatar = make_circular_avatar(user['avatar'])
-        avatar_pos = ((IMAGE_SIZE[0] - AVATAR_SIZE) // 2, int(IMAGE_SIZE[1] * 0.05))
-        img.paste(avatar, avatar_pos, avatar)
-    
-    # Функция для получения размера текста
-    def get_text_size(text, font):
-        bbox = draw.textbbox((0, 0), text, font=font)
-        return bbox[2] - bbox[0], bbox[3] - bbox[1]
-    
-    # Позиции для текста (под аватаркой)
-    text_y = int(IMAGE_SIZE[1] * 0.05) + AVATAR_SIZE + int(IMAGE_SIZE[1] * 0.05)
-    
-    # Юзернейм (по центру)
-    username = f"@{user['username']}" if user['username'] else "Без юзернейма"
-    w, h = get_text_size(username, font_large)
-    draw.text(((IMAGE_SIZE[0] - w) // 2, text_y), username, font=font_large, fill=(255, 255, 255))
-    text_y += h + int(IMAGE_SIZE[1] * 0.03)
-    
-    # ФИО
-    w, h = get_text_size(user['fio'], font_medium)
-    draw.text(((IMAGE_SIZE[0] - w) // 2, text_y), user['fio'], font=font_medium, fill=(255, 255, 255))
-    text_y += h + int(IMAGE_SIZE[1] * 0.02)
-    
-    # Возраст
-    age_text = f"Возраст: {user['age']}"
-    w, h = get_text_size(age_text, font_medium)
-    draw.text(((IMAGE_SIZE[0] - w) // 2, text_y), age_text, font=font_medium, fill=(255, 255, 255))
-    text_y += h + int(IMAGE_SIZE[1] * 0.02)
-    
-    # Дни до дня рождения
-    birthday = datetime.strptime(user['birthday'], "%d.%m.%Y").date()
-    days_left = days_until_birthday(birthday)
-    
-    if days_left == 0:
-        days_text = "С ДНЕМ РОЖДЕНИЯ!"
-    else:
-        days_text = f"До дня рождения: {days_left} дней"
-    
-    w, h = get_text_size(days_text, font_medium)
-    draw.text(((IMAGE_SIZE[0] - w) // 2, text_y), days_text, font=font_medium, fill=(255, 255, 255))
-    
-    # Добавляем коды цветов внизу изображения
-    palette_text = "Цветовая палитра: " + " | ".join([f"#{r:02x}{g:02x}{b:02x}" for r, g, b in colors])
-    w, h = get_text_size(palette_text, font_small)
-    draw.text(((IMAGE_SIZE[0] - w) // 2, IMAGE_SIZE[1] - h - 20), palette_text, font=font_small, fill=(255, 255, 255))
-    
-    return img, colors
-
-# Вспомогательные функции
-def calculate_age(birthday):
-    today = date.today()
-    age = today.year - birthday.year - ((today.month, today.day) < (birthday.month, birthday.day))
-    return age
-
-def days_until_birthday(birthday):
-    today = date.today()
-    next_birthday = date(today.year, birthday.month, birthday.day)
-    
-    if next_birthday < today:
-        next_birthday = date(today.year + 1, birthday.month, birthday.day)
-    
-    return (next_birthday - today).days
 
 # Ежедневные уведомления
 def daily_notifications():
     while True:
         now = datetime.now()
-        if now.hour == 0 and now.minute == 0:  # Полночь
+        if now.hour == 0 and now.minute < 1:  # Первая минута после полуночи
             today = date.today()
-            for user_id, user_data in users.items():
-                if user_data['notifications'] and user_data['agreed']:
+            for user_id, user in users.items():
+                if user.get('notifications', False):
                     try:
-                        birthday = datetime.strptime(user_data['birthday'], "%d.%m.%Y").date()
-                        days_left = days_until_birthday(birthday)
+                        birthday = datetime.strptime(user['birthday'], "%d.%m.%Y").date()
+                        days = days_until_birthday(birthday)
                         
-                        if days_left == 0:
-                            message = f"🎉 С ДНЕМ РОЖДЕНИЯ, {user_data['fio']}! 🎉"
+                        if days == 0:
+                            msg = f"🎉 {user['fio']}, с Днем Рождения! 🎉"
                         else:
-                            message = f"До вашего дня рождения осталось {days_left} дней!"
+                            msg = f"{user['fio']}, до вашего ДР осталось {days} дней"
                         
-                        bot.send_message(int(user_id), message)
+                        bot.send_message(int(user_id), msg)
                         generate_and_send_profile(int(user_id), user_id)
                     except Exception as e:
-                        print(f"Ошибка отправки уведомления для {user_id}: {e}")
-            
-            # Ожидаем 1 час перед следующей проверкой
-            time.sleep(3600)
+                        print(f"Ошибка уведомления для {user_id}: {e}")
+            time.sleep(60)  # Проверяем раз в минуту
         else:
-            # Проверяем каждую минуту
-            time.sleep(60)
+            time.sleep(30)
 
-# Запуск бота и уведомленийif __name__ == '__main__':
+if __name__ == '__main__':
     print("Бот запущен...")
-    
-    # Запускаем поток для ежедневных уведомлений
-    notification_thread = threading.Thread(target=daily_notifications, daemon=True)
-    notification_thread.start()
-    
-    try:
-        bot.infinity_polling()
-    except Exception as e:
-        print(f"Ошибка: {e}")
+    threading.Thread(target=daily_notifications, daemon=True).start()
+    bot.infinity_polling()
