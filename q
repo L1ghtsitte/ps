@@ -224,9 +224,50 @@ def generate_profile_image(user):
     
     return img, colors
 
-# ... (остальной код остается без изменений, как в предыдущем примере)
+# Вспомогательные функции
+def calculate_age(birthday):
+    today = date.today()
+    age = today.year - birthday.year - ((today.month, today.day) < (birthday.month, birthday.day))
+    return age
 
-if __name__ == '__main__':
+def days_until_birthday(birthday):
+    today = date.today()
+    next_birthday = date(today.year, birthday.month, birthday.day)
+    
+    if next_birthday < today:
+        next_birthday = date(today.year + 1, birthday.month, birthday.day)
+    
+    return (next_birthday - today).days
+
+# Ежедневные уведомления
+def daily_notifications():
+    while True:
+        now = datetime.now()
+        if now.hour == 0 and now.minute == 0:  # Полночь
+            today = date.today()
+            for user_id, user_data in users.items():
+                if user_data['notifications'] and user_data['agreed']:
+                    try:
+                        birthday = datetime.strptime(user_data['birthday'], "%d.%m.%Y").date()
+                        days_left = days_until_birthday(birthday)
+                        
+                        if days_left == 0:
+                            message = f"🎉 С ДНЕМ РОЖДЕНИЯ, {user_data['fio']}! 🎉"
+                        else:
+                            message = f"До вашего дня рождения осталось {days_left} дней!"
+                        
+                        bot.send_message(int(user_id), message)
+                        generate_and_send_profile(int(user_id), user_id)
+                    except Exception as e:
+                        print(f"Ошибка отправки уведомления для {user_id}: {e}")
+            
+            # Ожидаем 1 час перед следующей проверкой
+            time.sleep(3600)
+        else:
+            # Проверяем каждую минуту
+            time.sleep(60)
+
+# Запуск бота и уведомленийif __name__ == '__main__':
     print("Бот запущен...")
     
     # Запускаем поток для ежедневных уведомлений
