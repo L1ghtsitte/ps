@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Тёмное Зеркало Души</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=MedievalSharp&family=Old+Standard+TT&display=swap');
+        
+        :root {
+            --blood-red: #5e0000;
+            --dried-blood: #3a0000;
+            --black: #0a0a0a;
+            --rust: #8b3a0a;
+            --parchment: #e0d8c0;
+        }
+        
+        body {
+            background-color: var(--black);
+            background-image: 
+                url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><path fill="%235e0000" opacity="0.2" d="M0,0 L100,0 L100,100 L0,100 Z M30,30 Q50,10 70,30 T90,70 Q70,90 50,70 T10,30 Q30,10 50,30 T70,70 Q50,90 30,70 Z"/></svg>'),
+                linear-gradient(to bottom, rgba(94, 0, 0, 0.1), rgba(10, 10, 10, 0.9)),
+                url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200"><path fill="none" stroke="%233a0000" stroke-width="1" d="M20,20 Q100,0 180,20 T180,180 Q100,200 20,180 T20,20 Z M50,50 Q100,30 150,50 T150,150 Q100,170 50,150 T50,50 Z"/></svg>');
+            background-size: 100px, cover, 200px;
+            color: var(--parchment);
+            font-family: 'Old Standard TT', serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 0;
+            overflow-x: hidden;
+            position: relative;
+        }
+        
+        body::before {
+            content: "";
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: 
+                radial-gradient(circle at 20% 30%, transparent 0%, rgba(94, 0, 0, 0.1) 70%),
+                radial-gradient(circle at 80% 70%, transparent 0%, rgba(94, 0, 0, 0.1) 70%),
+                linear-gradient(135deg, rgba(0,0,0,0.9) 0%, rgba(94,0,0,0.3) 100%);
+            pointer-events: none;
+            z-index: -1;
+        }
+        
+        .blood-stain {
+            position: fixed;
+            opacity: 0.7;
+            z-index: -1;
+            filter: blur(1px);
+        }
+        
+        .blood-stain:nth-child(1) {
+            top: 10%;
+            left: 15%;
+            width: 200px;
+            height: 300px;
+            background: radial-gradient(ellipse at center, var(--blood-red) 0%, transparent 70%);
+            transform: rotate(15deg);
+        }
+        
+        .blood-stain:nth-child(2) {
+            bottom: 5%;
+            right: 10%;
+            width: 300px;
+            height: 200px;
+            background: radial-gradient(ellipse at center, var(--dried-blood) 0%, transparent 70%);
+            transform: rotate(-10deg);
+        }
+        
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+            position: relative;
+        }
+        
+        header {
+            text-align: center;
+            padding: 30px 0;
+            border-bottom: 1px solid var(--blood-red);
+            margin-bottom: 40px;
+            position: relative;
+        }
+        
+        header::after {
+            content: "";
+            position: absolute;
+            bottom: -5px;
+            left: 0;
+            width: 100%;
+            height: 1px;
+            background: linear-gradient(to right, transparent, var(--blood-red), transparent);
+        }
+        
+        h1, h2, h3 {
+            font-family: 'MedievalSharp', cursive;
+            color: var(--blood-red);
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7);
+        }
+        
+        h1 {
+            font-size: 3.5rem;
+            margin: 0;
+            letter-spacing: 3px;
+            position: relative;
+            animation: flicker 5s infinite alternate;
+        }
+        
+        h2 {
+            font-size: 2.2rem;
+            border-left: 3px solid var(--blood-red);
+            padding-left: 15px;
+            margin-top: 40px;
+        }
+        
+        h3 {
+            font-size: 1.8rem;
+            margin-top: 30px;
+            color: var(--rust);
+        }
+        
+        @keyframes flicker {
+            0%, 19%, 21%, 23%, 25%, 54%, 56%, 100% {
+                text-shadow: 
+                    2px 2px 4px rgba(0, 0, 0, 0.7),
+                    0 0 10px var(--blood-red),
+                    0 0 20px var(--dried-blood);
+            }
+            20%, 24%, 55% {        
+                text-shadow: none;
+            }
+        }
+        
+        .sigil {
+            width: 100px;
+            height: 100px;
+            margin: 20px auto;
+            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><path fill="none" stroke="%235e0000" stroke-width="2" d="M50,10 L90,90 L10,90 Z M30,50 L70,50 L50,90 Z"/></svg>');
+            background-repeat: no-repeat;
+            background-position: center;
+            opacity: 0.8;
+            animation: pulse 7s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 0.8; }
+            50% { transform: scale(1.1); opacity: 1; }
+            100% { transform: scale(1); opacity: 0.8; }
+        }
+        
+        nav {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin: 30px 0;
+        }
+        
+        nav a {
+            color: var(--parchment);
+            text-decoration: none;
+            padding: 8px 15px;
+            border: 1px solid var(--blood-red);
+            border-radius: 3px;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        nav a:hover {
+            background-color: var(--blood-red);
+            color: white;
+            text-shadow: 0 0 5px white;
+        }
+        
+        nav a::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+            transition: all 0.5s ease;
+        }
+        
+        nav a:hover::before {
+            left: 100%;
+        }
+        
+        section {
+            margin-bottom: 50px;
+            background-color: rgba(10, 10, 10, 0.7);
+            padding: 25px;
+            border-radius: 5px;
+            box-shadow: 0 0 15px rgba(94, 0, 0, 0.3);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        section::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><path fill="none" stroke="%233a0000" stroke-width="0.5" d="M0,0 L100,100 M100,0 L0,100"/></svg>');
+            opacity: 0.1;
+            pointer-events: none;
+        }
+        
+        .game-list, .social-list, .blog-list {
+            list-style-type: none;
+            padding: 0;
+        }
+        
+        .game-list li, .social-list li, .blog-list li {
+            padding: 10px 0;
+            border-bottom: 1px dashed var(--rust);
+            position: relative;
+            padding-left: 20px;
+        }
+        
+        .game-list li::before, .social-list li::before, .blog-list li::before {
+            content: "✠";
+            position: absolute;
+            left: 0;
+            color: var(--blood-red);
+        }
+        
+        a {
+            color: var(--rust);
+            text-decoration: none;
+            transition: color 0.3s ease;
+        }
+        
+        a:hover {
+            color: var(--blood-red);
+            text-decoration: underline;
+        }
+        
+        .pentagram {
+            width: 150px;
+            height: 150px;
+            margin: 30px auto;
+            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><path fill="none" stroke="%235e0000" stroke-width="1.5" d="M50,5 L63,37 L97,38 L68,58 L79,91 L50,73 L21,91 L32,58 L3,38 L37,37 Z"/></svg>');
+            background-repeat: no-repeat;
+            background-position: center;
+            animation: rotate 30s linear infinite;
+            opacity: 0.6;
+        }
+        
+        @keyframes rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        
+        .quote {
+            font-style: italic;
+            padding: 20px;
+            border-left: 3px solid var(--blood-red);
+            background-color: rgba(94, 0, 0, 0.1);
+            margin: 30px 0;
+            position: relative;
+        }
+        
+        .quote::before, .quote::after {
+            content: '"';
+            font-size: 2rem;
+            color: var(--blood-red);
+            position: absolute;
+        }
+        
+        .quote::before {
+            top: 5px;
+            left: 5px;
+        }
+        
+        .quote::after {
+            bottom: 5px;
+            right: 5px;
+        }
+        
+        footer {
+            text-align: center;
+            padding: 30px 0;
+            margin-top: 50px;
+            border-top: 1px solid var(--blood-red);
+            font-size: 0.9rem;
+            color: var(--rust);
+            position: relative;
+        }
+        
+        footer::before {
+            content: "";
+            position: absolute;
+            top: -5px;
+            left: 0;
+            width: 100%;
+            height: 1px;
+            background: linear-gradient(to right, transparent, var(--blood-red), transparent);
+        }
+        
+        .candle {
+            width: 30px;
+            height: 60px;
+            background: linear-gradient(to right, #8B3A0A, #CD5C5C, #8B3A0A);
+            margin: 0 auto;
+            position: relative;
+            border-radius: 3px;
+        }
+        
+        .candle::before {
+            content: "";
+            position: absolute;
+            top: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 10px;
+            height: 15px;
+            background: linear-gradient(white, #FFD700);
+            border-radius: 50% 50% 20% 20%;
+            box-shadow: 0 0 10px #FF4500, 0 0 20px #FF8C00;
+            animation: flicker 2s infinite alternate;
+        }
+        
+        .candle::after {
+            content: "";
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 5px;
+            background: #1A1A1A;
+            border-radius: 0 0 3px 3px;
+        }
+        
+        .hidden-message {
+            color: rgba(224, 216, 192, 0.1);
+            font-size: 0.8rem;
+            text-align: center;
+            margin-top: 20px;
+            transition: color 0.5s ease;
+        }
+        
+        .hidden-message:hover {
+            color: var(--blood-red);
+        }
+        
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 2.5rem;
+            }
+            
+            .container {
+                padding: 10px;
+            }
+            
+            section {
+                padding: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="blood-stain"></div>
+    <div class="blood-stain"></div>
+    
+    <div class="container">
+        <header>
+            <div class="sigil"></div>
+            <h1>ТЁМНОЕ ЗЕРКАЛО ДУШИ</h1>
+            <p>«Тьма внутри нас лишь ожидает своего часа...»</p>
+            <div class="pentagram"></div>
+        </header>
+        
+        <nav>
+            <a href="#about">О Тьме</a>
+            <a href="#games">Игры разума</a>
+            <a href="#occult">Оккультные интересы</a>
+            <a href="#social">Связи с миром</a>
+            <a href="#blog">Хроники безумия</a>
+            <a href="#gallery">Галерея теней</a>
+            <a href="#rituals">Ритуалы</a>
+            <a href="#contact">Призыв</a>
+        </nav>
+        
+        <section id="about">
+            <h2>О Тьме внутри</h2>
+            <p>Приветствую, странник в лабиринте моей души. Здесь собраны фрагменты моего сознания, отражённые в зеркале тьмы. Я — проводник в мир теней, исследователь запретного, игрок в игры, где ставка — сама душа.</p>
+            
+            <div class="quote">
+                "Мы все носим в себе тьму, но лишь немногие осмеливаются зажечь в ней свет."
+            </div>
+            
+            <p>Мои интересы простираются от психологических триллеров до древних оккультных практик. Я изучаю природу страха, механизмы манипуляции сознанием и ритуалы, забытые веками.</p>
+            
+            <div class="candle"></div>
+        </section>
+        
+        <section id="games">
+            <h2>Игры разума</h2>
+            <p>Игры, в которые я играю — не просто развлечение, а врата в иные состояния сознания:</p>
+            
+            <h3>Психологические триллеры:</h3>
+            <ul class="game-list">
+                <li><strong>Silent Hill</strong> (серия) — исследование личного ада</li>
+                <li><strong>Hellblade: Senua's Sacrifice</strong> — путешествие через психоз</li>
+                <li><strong>Layers of Fear</strong> — деконструкция безумия</li>
+                <li><strong>Amnesia: The Dark Descent</strong> — утрата себя</li>
+                <li><strong>Outlast</strong> — эксперименты над сознанием</li>
+            </ul>
+            
+            <h3>Оккультные игры:</h3>
+            <ul class="game-list">
+                <li><strong>The Sinking City</strong> — любкрафтовские кошмары</li>
+                <li><strong>Bloodborne</strong> — кровавые ритуалы</li>
+                <li><strong>Darkest Dungeon</strong> — тьма в сердце</li>
+                <li><strong>Blasphemous</strong> — религиозный ужас</li>
+                <li><strong>Agony</strong> — путешествие через ад</li>
+            </ul>
+            
+            <h3>Мрачные RPG:</h3>
+            <ul class="game-list">
+                <li><strong>Vampire: The Masquerade - Bloodlines</strong> — вампирская политика</li>
+                <li><strong>Pathologic</strong> — выживание в проклятом городе</li>
+                <li><strong>Dark Souls</strong> (серия) — циклы страдания</li>
+                <li><strong>Disco Elysium</strong> — распад личности</li>
+            </ul>
+            
+            <div class="pentagram"></div>
+        </section>
+        
+        <section id="occult">
+            <h2>Оккультные интересы</h2>
+            <p>Мои исследования в области эзотерики и сакрального знания:</p>
+            
+            <h3>Демонология:</h3>
+            <p>Изучение иерархий тьмы, классификация демонических сущностей, их символика и методы призыва.</p>
+            
+            <h3>Ритуалистика:</h3>
+            <p>Практики от древних шаманских обрядов до современных церемониальных магических систем.</p>
+            
+            <h3>Экзорцизм:</h3>
+            <p>История, методы и психологические аспекты изгнания сущностей.</p>
+            
+            <h3>Симвология:</h3>
+            <p>Скрытые значения в религиозных и оккультных символах, их влияние на подсознание.</p>
+            
+            <div class="quote">
+                "Когда ты вглядываешься в бездну, бездна вглядывается в тебя."<br>
+                — Фридрих Ницше
+            </div>
+        </section>
+        
+        <section id="social">
+            <h2>Связи с миром</h2>
+            <p>Мои профили в социальных сетях и других измерениях:</p>
+            
+            <ul class="social-list">
+                <li><strong>VK:</strong> <a href="#">Тёмный Исследователь</a></li>
+                <li><strong>Telegram:</strong> <a href="#">@ShadowWalker</a></li>
+                <li><strong>Discord:</strong> <a href="#">Dæmon#666</a></li>
+                <li><strong>Steam:</strong> <a href="#">OccultGamer</a></li>
+                <li><strong>YouTube:</strong> <a href="#">Канал Тьмы</a> — обзоры психологических хорроров</li>
+                <li><strong>Twitch:</strong> <a href="#">StreamOfMadness</a> — стримы мрачных игр</li>
+            </ul>
+            
+            <div class="sigil"></div>
+        </section>
+        
+        <section id="blog">
+            <h2>Хроники безумия</h2>
+            <p>Мои записи о путешествиях по лабиринтам сознания:</p>
+            
+            <ul class="blog-list">
+                <li><strong><a href="#">Анатомия страха: как игры манипулируют нашими фобиями</a></strong> — анализ механизмов ужаса в видеоиграх</li>
+                <li><strong><a href="#">Демоны внутри: психологическая интерпретация архетипов тьмы</a></strong></li>
+                <li><strong><a href="#">Ритуалы очищения в разных культурах: от экзорцизма до психотерапии</a></strong></li>
+                <li><strong><a href="#">Символика пентаграммы: от защиты до призыва</a></strong></li>
+                <li><strong><a href="#">Silent Hill как современная мифология</a></strong></li>
+                <li><strong><a href="#">Тёмная сторона психологии: эксперименты, которые изменили наше понимание разума</a></strong></li>
+            </ul>
+            
+            <div class="candle"></div>
+        </section>
+        
+        <section id="gallery">
+            <h2>Галерея теней</h2>
+            <p>Визуальные образы моих исследований (здесь будут миниатюры изображений):</p>
+            
+            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 15px; margin-top: 20px;">
+                <div style="background: rgba(94, 0, 0, 0.3); height: 150px; display: flex; align-items: center; justify-content: center; border: 1px dashed var(--rust);">Оккультные символы</div>
+                <div style="background: rgba(94, 0, 0, 0.3); height: 150px; display: flex; align-items: center; justify-content: center; border: 1px dashed var(--rust);">Игровые скриншоты</div>
+                <div style="background: rgba(94, 0, 0, 0.3); height: 150px; display: flex; align-items: center; justify-content: center; border: 1px dashed var(--rust);">Ритуальные артефакты</div>
+                <div style="background: rgba(94, 0, 0, 0.3); height: 150px; display: flex; align-items: center; justify-content: center; border: 1px dashed var(--rust);">Мрачные пейзажи</div>
+                <div style="background: rgba(94, 0, 0, 0.3); height: 150px; display: flex; align-items: center; justify-content: center; border: 1px dashed var(--rust);">Эскизы существ</div>
+                <div style="background: rgba(94, 0, 0, 0.3); height: 150px; display: flex; align-items: center; justify-content: center; border: 1px dashed var(--rust);">Сны и видения</div>
+            </div>
+        </section>
+        
+        <section id="rituals">
+            <h2>Ритуалы и практики</h2>
+            <p>Методы работы с подсознанием и трансцендентные практики:</p>
+            
+            <h3>Медитации в темноте</h3>
+            <p>Техники погружения в глубины собственного сознания через сенсорную депривацию.</p>
+            
+            <h3>Онейромантия</h3>
+            <p>Искусство осознанных сновидений и толкования символов из мира снов.</p>
+            
+            <h3>Автоматическое письмо</h3>
+            <p>Методы установления контакта с подсознанием через потоковое письмо.</p>
+            
+            <h3>Создание мандал тьмы</h3>
+            <p>Визуализация внутренних конфликтов через симметричные рисунки.</p>
+            
+            <div class="quote">
+                "Самые тёмные уголки ада резервируются для тех, кто во времена морального кризиса сохраняет нейтралитет."<br>
+                — Данте Алигьери
+            </div>
+            
+            <div class="pentagram"></div>
+        </section>
+        
+        <section id="contact">
+            <h2>Призыв</h2>
+            <p>Если ты чувствуешь родство с тьмой, желаешь обсудить игры, оккультизм или поделиться своими мыслями — оставь след в этом мире:</p>
+            
+            <form style="margin-top: 20px;">
+                <div style="margin-bottom: 15px;">
+                    <label for="name" style="display: block; margin-bottom: 5px; color: var(--rust);">Твоё имя:</label>
+                    <input type="text" id="name" style="width: 100%; padding: 8px; background-color: rgba(10, 10, 10, 0.5); border: 1px solid var(--blood-red); color: var(--parchment);">
+                </div>
+                
+                <div style="margin-bottom: 15px;">
+                    <label for="email" style="display: block; margin-bottom: 5px; color: var(--rust);">Знак для ответа:</label>
+                    <input type="email" id="email" style="width: 100%; padding: 8px; background-color: rgba(10, 10, 10, 0.5); border: 1px solid var(--blood-red); color: var(--parchment);">
+                </div>
+                
+                <div style="margin-bottom: 15px;">
+                    <label for="message" style="display: block; margin-bottom: 5px; color: var(--rust);">Твоё послание:</label>
+                    <textarea id="message" rows="5" style="width: 100%; padding: 8px; background-color: rgba(10, 10, 10, 0.5); border: 1px solid var(--blood-red); color: var(--parchment);"></textarea>
+                </div>
+                
+                <button type="submit" style="background-color: var(--dried-blood); color: var(--parchment); border: none; padding: 10px 20px; cursor: pointer; transition: all 0.3s ease; border: 1px solid var(--blood-red);">Отправить в бездну</button>
+            </form>
+        </section>
+        
+        <footer>
+            <div class="sigil"></div>
+            <p>© 2023 Тёмное Зеркало Души. Все права защищены древними заклинаниями.</p>
+            <p>Последнее обновление: в полнолуние.</p>
+            <div class="hidden-message">
+                Если читаешь это, значит тьма уже внутри тебя. Она всегда была там. Проснись.
+            </div>
+        </footer>
+    </div>
+</body>
+</html>
