@@ -1,725 +1,705 @@
+// large_form.h
 #pragma once
 
 #include <Windows.h>
-#include "large_form.h"
+#include <string>
+#include <stack>
+#include <cmath>
+#include <algorithm>
 
 namespace crl2stud {
 
-	using namespace System;
-	using namespace System::ComponentModel;
-	using namespace System::Collections;
-	using namespace System::Windows::Forms;
-	using namespace System::Data;
-	using namespace System::Drawing;
+    using namespace System;
+    using namespace System::ComponentModel;
+    using namespace System::Collections;
+    using namespace System::Windows::Forms;
+    using namespace System::Data;
+    using namespace System::Drawing;
 
-	/// <summary>
-	/// Сводка для main_form
-	/// </summary>
-	public ref class main_form : public System::Windows::Forms::Form
-	{
-	public:
-		main_form(void)
-		{
-			InitializeComponent();
-			//
-			//TODO: добавьте код конструктора
-			//
-		}
+    public ref class large_form : public System::Windows::Forms::Form
+    {
+    public:
+        large_form(void)
+        {
+            InitializeComponent();
+            InitializeTrigMenu();
+            this->trigMenu->Visible = false;
+        }
 
-	protected:
-		/// <summary>
-		/// Освободить все используемые ресурсы.
-		/// </summary>
-		~main_form()
-		{
-			if (components)
-			{
-				delete components;
-			}
-		}
-	private: System::Windows::Forms::Button^ exit_button_main;
-	private: System::Windows::Forms::Label^ result_lable;
-	private: System::Windows::Forms::Button^ negative_pozitive_button;
+    protected:
+        ~large_form()
+        {
+            if (components)
+            {
+                delete components;
+            }
+        }
 
+    private:
+        System::Windows::Forms::TextBox^ expressionBox;
+        System::Windows::Forms::Button^ btnSin;
+        System::Windows::Forms::Button^ btnCos;
+        System::Windows::Forms::Button^ btnTan;
+        System::Windows::Forms::Button^ btnCot;
+        System::Windows::Forms::Button^ btnSqrt;
+        System::Windows::Forms::Button^ btnPower;
+        System::Windows::Forms::Button^ btnOpenParen;
+        System::Windows::Forms::Button^ btnCloseParen;
+        System::Windows::Forms::Button^ btnBack;
+        System::Windows::Forms::Button^ btnClear;
+        System::Windows::Forms::Button^ btnEquals;
+        System::Windows::Forms::Button^ btnTrig;
+        System::Windows::Forms::Panel^ trigMenu;
+        System::Windows::Forms::Button^ btnMainForm;
+        System::Windows::Forms::Button^ btn0;
+        System::Windows::Forms::Button^ btn1;
+        System::Windows::Forms::Button^ btn2;
+        System::Windows::Forms::Button^ btn3;
+        System::Windows::Forms::Button^ btn4;
+        System::Windows::Forms::Button^ btn5;
+        System::Windows::Forms::Button^ btn6;
+        System::Windows::Forms::Button^ btn7;
+        System::Windows::Forms::Button^ btn8;
+        System::Windows::Forms::Button^ btn9;
+        System::Windows::Forms::Button^ btnPlus;
+        System::Windows::Forms::Button^ btnMinus;
+        System::Windows::Forms::Button^ btnMultiply;
+        System::Windows::Forms::Button^ btnDivide;
+        System::Windows::Forms::Button^ btnDot;
+        System::Windows::Forms::Button^ btnSign;
 
-	private: System::Windows::Forms::Button^ ttr_button;
-
-	private: System::Windows::Forms::Button^ division_button;
-
-
-
-	private: System::Windows::Forms::Button^ clear_button;
-	private: System::Windows::Forms::Button^ nine_button;
-	private: System::Windows::Forms::Button^ eight_button;
-
-
-
-
-
-	private: System::Windows::Forms::Button^ plus_button;
-	private: System::Windows::Forms::Button^ seven_button;
-	private: System::Windows::Forms::Button^ four_button;
-	private: System::Windows::Forms::Button^ one_button;
-
-
-
-
-
-	private: System::Windows::Forms::Button^ six_button;
-	private: System::Windows::Forms::Button^ five_button;
-
-
-	private: System::Windows::Forms::Button^ multiplication_button;
-	private: System::Windows::Forms::Button^ three_button;
-	private: System::Windows::Forms::Button^ two_button;
-
-
-
-	private: System::Windows::Forms::Button^ minus_button;
-	private: System::Windows::Forms::Button^ zero_button;
-	private: System::Windows::Forms::Button^ dot_button;
-
-
-
-	private: System::Windows::Forms::Button^ equals_button;
-	private: double first_num;
-	private: char user_action;
-	private: System::Windows::Forms::Button^ large_form_button;
-	private: System::Windows::Forms::Button^ button1;
-
-
-	protected:
-
-	protected:
-
-
-
-	protected:
-
-
-
-
-
-
-
-	protected:
-
-	private:
-		/// <summary>
-		/// Обязательная переменная конструктора.
-		/// </summary>
-		System::ComponentModel::Container^ components;
+        System::ComponentModel::Container^ components;
 
 #pragma region Windows Form Designer generated code
-		/// <summary>
-		/// Требуемый метод для поддержки конструктора — не изменяйте 
-		/// содержимое этого метода с помощью редактора кода.
-		/// </summary>
-		void InitializeComponent(void)
-		{
-			System::ComponentModel::ComponentResourceManager^ resources = (gcnew System::ComponentModel::ComponentResourceManager(main_form::typeid));
-			this->exit_button_main = (gcnew System::Windows::Forms::Button());
-			this->result_lable = (gcnew System::Windows::Forms::Label());
-			this->negative_pozitive_button = (gcnew System::Windows::Forms::Button());
-			this->ttr_button = (gcnew System::Windows::Forms::Button());
-			this->division_button = (gcnew System::Windows::Forms::Button());
-			this->clear_button = (gcnew System::Windows::Forms::Button());
-			this->nine_button = (gcnew System::Windows::Forms::Button());
-			this->eight_button = (gcnew System::Windows::Forms::Button());
-			this->plus_button = (gcnew System::Windows::Forms::Button());
-			this->seven_button = (gcnew System::Windows::Forms::Button());
-			this->four_button = (gcnew System::Windows::Forms::Button());
-			this->one_button = (gcnew System::Windows::Forms::Button());
-			this->six_button = (gcnew System::Windows::Forms::Button());
-			this->five_button = (gcnew System::Windows::Forms::Button());
-			this->multiplication_button = (gcnew System::Windows::Forms::Button());
-			this->three_button = (gcnew System::Windows::Forms::Button());
-			this->two_button = (gcnew System::Windows::Forms::Button());
-			this->minus_button = (gcnew System::Windows::Forms::Button());
-			this->zero_button = (gcnew System::Windows::Forms::Button());
-			this->dot_button = (gcnew System::Windows::Forms::Button());
-			this->equals_button = (gcnew System::Windows::Forms::Button());
-			this->large_form_button = (gcnew System::Windows::Forms::Button());
-			this->button1 = (gcnew System::Windows::Forms::Button());
-			this->SuspendLayout();
-			// 
-			// exit_button_main
-			// 
-			this->exit_button_main->BackColor = System::Drawing::Color::FromArgb(static_cast<System::Int32>(static_cast<System::Byte>(64)), static_cast<System::Int32>(static_cast<System::Byte>(62)),
-				static_cast<System::Int32>(static_cast<System::Byte>(62)));
-			this->exit_button_main->BackgroundImage = (cli::safe_cast<System::Drawing::Image^>(resources->GetObject(L"exit_button_main.BackgroundImage")));
-			this->exit_button_main->Cursor = System::Windows::Forms::Cursors::No;
-			this->exit_button_main->FlatStyle = System::Windows::Forms::FlatStyle::Flat;
-			this->exit_button_main->Font = (gcnew System::Drawing::Font(L"Microsoft YaHei", 8.25F, System::Drawing::FontStyle::Bold, System::Drawing::GraphicsUnit::Point,
-				static_cast<System::Byte>(204)));
-			this->exit_button_main->ForeColor = System::Drawing::Color::FromArgb(static_cast<System::Int32>(static_cast<System::Byte>(64)), static_cast<System::Int32>(static_cast<System::Byte>(62)),
-				static_cast<System::Int32>(static_cast<System::Byte>(62)));
-			this->exit_button_main->Location = System::Drawing::Point(3, 3);
-			this->exit_button_main->Name = L"exit_button_main";
-			this->exit_button_main->Size = System::Drawing::Size(30, 30);
-			this->exit_button_main->TabIndex = 0;
-			this->exit_button_main->UseVisualStyleBackColor = false;
-			this->exit_button_main->Click += gcnew System::EventHandler(this, &main_form::exit_button_main_Click);
-			// 
-			// result_lable
-			// 
-			this->result_lable->Font = (gcnew System::Drawing::Font(L"Microsoft YaHei", 27.75F, System::Drawing::FontStyle::Bold, System::Drawing::GraphicsUnit::Point,
-				static_cast<System::Byte>(204)));
-			this->result_lable->ForeColor = System::Drawing::SystemColors::ButtonHighlight;
-			this->result_lable->Location = System::Drawing::Point(12, 49);
-			this->result_lable->Name = L"result_lable";
-			this->result_lable->Size = System::Drawing::Size(278, 54);
-			this->result_lable->TabIndex = 1;
-			this->result_lable->Text = L"0";
-			this->result_lable->TextAlign = System::Drawing::ContentAlignment::TopRight;
-			// 
-			// negative_pozitive_button
-			// 
-			this->negative_pozitive_button->BackColor = System::Drawing::Color::FromArgb(static_cast<System::Int32>(static_cast<System::Byte>(130)),
-				static_cast<System::Int32>(static_cast<System::Byte>(125)), static_cast<System::Int32>(static_cast<System::Byte>(125)));
-			this->negative_pozitive_button->BackgroundImage = (cli::safe_cast<System::Drawing::Image^>(resources->GetObject(L"negative_pozitive_button.BackgroundImage")));
-			this->negative_pozitive_button->Cursor = System::Windows::Forms::Cursors::Hand;
-			this->negative_pozitive_button->FlatStyle = System::Windows::Forms::FlatStyle::Popup;
-			this->negative_pozitive_button->Font = (gcnew System::Drawing::Font(L"Microsoft YaHei", 1.5F, System::Drawing::FontStyle::Bold, System::Drawing::GraphicsUnit::Point,
-				static_cast<System::Byte>(204)));
-			this->negative_pozitive_button->ForeColor = System::Drawing::Color::FromArgb(static_cast<System::Int32>(static_cast<System::Byte>(130)),
-				static_cast<System::Int32>(static_cast<System::Byte>(125)), static_cast<System::Int32>(static_cast<System::Byte>(125)));
-			this->negative_pozitive_button->Location = System::Drawing::Point(9, 356);
-			this->negative_pozitive_button->Name = L"negative_pozitive_button";
-			this->negative_pozitive_button->Size = System::Drawing::Size(65, 50);
-			this->negative_pozitive_button->TabIndex = 2;
-			this->negative_pozitive_button->Text = L"+/-";
-			this->negative_pozitive_button->TextAlign = System::Drawing::ContentAlignment::TopLeft;
-			this->negative_pozitive_button->UseVisualStyleBackColor = false;
-			this->negative_pozitive_button->Click += gcnew System::EventHandler(this, &main_form::negative_pozitive_button_Click);
-			// 
-			// ttr_button
-			// 
-			this->ttr_button->BackColor = System::Drawing::Color::FromArgb(static_cast<System::Int32>(static_cast<System::Byte>(130)), static_cast<System::Int32>(static_cast<System::Byte>(125)),
-				static_cast<System::Int32>(static_cast<System::Byte>(125)));
-			this->ttr_button->BackgroundImage = (cli::safe_cast<System::Drawing::Image^>(resources->GetObject(L"ttr_button.BackgroundImage")));
-			this->ttr_button->Cursor = System::Windows::Forms::Cursors::Hand;
-			this->ttr_button->FlatStyle = System::Windows::Forms::FlatStyle::Popup;
-			this->ttr_button->Font = (gcnew System::Drawing::Font(L"Microsoft YaHei", 1.5F, System::Drawing::FontStyle::Bold, System::Drawing::GraphicsUnit::Point,
-				static_cast<System::Byte>(204)));
-			this->ttr_button->ForeColor = System::Drawing::Color::FromArgb(static_cast<System::Int32>(static_cast<System::Byte>(130)), static_cast<System::Int32>(static_cast<System::Byte>(125)),
-				static_cast<System::Int32>(static_cast<System::Byte>(125)));
-			this->ttr_button->Location = System::Drawing::Point(80, 132);
-			this->ttr_button->Name = L"ttr_button";
-			this->ttr_button->Size = System::Drawing::Size(65, 50);
-			this->ttr_button->TabIndex = 3;
-			this->ttr_button->Text = L"%";
-			this->ttr_button->TextAlign = System::Drawing::ContentAlignment::TopLeft;
-			this->ttr_button->UseVisualStyleBackColor = false;
-			// 
-			// division_button
-			// 
-			this->division_button->BackColor = System::Drawing::Color::FromArgb(static_cast<System::Int32>(static_cast<System::Byte>(130)), static_cast<System::Int32>(static_cast<System::Byte>(125)),
-				static_cast<System::Int32>(static_cast<System::Byte>(125)));
-			this->division_button->BackgroundImage = (cli::safe_cast<System::Drawing::Image^>(resources->GetObject(L"division_button.BackgroundImage")));
-			this->division_button->Cursor = System::Windows::Forms::Cursors::Hand;
-			this->division_button->FlatStyle = System::Windows::Forms::FlatStyle::Popup;
-			this->division_button->Font = (gcnew System::Drawing::Font(L"Microsoft YaHei", 1.5F, System::Drawing::FontStyle::Bold, System::Drawing::GraphicsUnit::Point,
-				static_cast<System::Byte>(204)));
-			this->division_button->ForeColor = System::Drawing::Color::FromArgb(static_cast<System::Int32>(static_cast<System::Byte>(130)), static_cast<System::Int32>(static_cast<System::Byte>(125)),
-				static_cast<System::Int32>(static_cast<System::Byte>(125)));
-			this->division_button->Location = System::Drawing::Point(151, 132);
-			this->division_button->Name = L"division_button";
-			this->division_button->Size = System::Drawing::Size(65, 50);
-			this->division_button->TabIndex = 5;
-			this->division_button->Text = L"/";
-			this->division_button->TextAlign = System::Drawing::ContentAlignment::TopLeft;
-			this->division_button->UseVisualStyleBackColor = false;
-			this->division_button->Click += gcnew System::EventHandler(this, &main_form::division_button_Click);
-			// 
-			// clear_button
-			// 
-			this->clear_button->BackColor = System::Drawing::Color::FromArgb(static_cast<System::Int32>(static_cast<System::Byte>(130)), static_cast<System::Int32>(static_cast<System::Byte>(125)),
-				static_cast<System::Int32>(static_cast<System::Byte>(125)));
-			this->clear_button->BackgroundImage = (cli::safe_cast<System::Drawing::Image^>(resources->GetObject(L"clear_button.BackgroundImage")));
-			this->clear_button->Cursor = System::Windows::Forms::Cursors::Hand;
-			this->clear_button->FlatStyle = System::Windows::Forms::FlatStyle::Popup;
-			this->clear_button->Font = (gcnew System::Drawing::Font(L"Microsoft YaHei", 1.5F, System::Drawing::FontStyle::Bold, System::Drawing::GraphicsUnit::Point,
-				static_cast<System::Byte>(204)));
-			this->clear_button->ForeColor = System::Drawing::Color::FromArgb(static_cast<System::Int32>(static_cast<System::Byte>(130)), static_cast<System::Int32>(static_cast<System::Byte>(125)),
-				static_cast<System::Int32>(static_cast<System::Byte>(125)));
-			this->clear_button->Location = System::Drawing::Point(9, 132);
-			this->clear_button->Name = L"clear_button";
-			this->clear_button->Size = System::Drawing::Size(65, 50);
-			this->clear_button->TabIndex = 6;
-			this->clear_button->Text = L"AC";
-			this->clear_button->TextAlign = System::Drawing::ContentAlignment::TopLeft;
-			this->clear_button->UseVisualStyleBackColor = false;
-			this->clear_button->Click += gcnew System::EventHandler(this, &main_form::clear_button_Click);
-			// 
-			// nine_button
-			// 
-			this->nine_button->BackColor = System::Drawing::Color::FromArgb(static_cast<System::Int32>(static_cast<System::Byte>(130)), static_cast<System::Int32>(static_cast<System::Byte>(125)),
-				static_cast<System::Int32>(static_cast<System::Byte>(125)));
-			this->nine_button->BackgroundImage = (cli::safe_cast<System::Drawing::Image^>(resources->GetObject(L"nine_button.BackgroundImage")));
-			this->nine_button->Cursor = System::Windows::Forms::Cursors::Cross;
-			this->nine_button->FlatStyle = System::Windows::Forms::FlatStyle::Popup;
-			this->nine_button->Font = (gcnew System::Drawing::Font(L"Microsoft YaHei", 1.5F, System::Drawing::FontStyle::Bold, System::Drawing::GraphicsUnit::Point,
-				static_cast<System::Byte>(204)));
-			this->nine_button->ForeColor = System::Drawing::Color::FromArgb(static_cast<System::Int32>(static_cast<System::Byte>(130)), static_cast<System::Int32>(static_cast<System::Byte>(125)),
-				static_cast<System::Int32>(static_cast<System::Byte>(125)));
-			this->nine_button->Location = System::Drawing::Point(9, 188);
-			this->nine_button->Name = L"nine_button";
-			this->nine_button->Size = System::Drawing::Size(65, 50);
-			this->nine_button->TabIndex = 7;
-			this->nine_button->Text = L"9";
-			this->nine_button->TextAlign = System::Drawing::ContentAlignment::TopLeft;
-			this->nine_button->UseVisualStyleBackColor = false;
-			this->nine_button->Click += gcnew System::EventHandler(this, &main_form::button_number_choise);
-			// 
-			// eight_button
-			// 
-			this->eight_button->BackColor = System::Drawing::Color::FromArgb(static_cast<System::Int32>(static_cast<System::Byte>(130)), static_cast<System::Int32>(static_cast<System::Byte>(125)),
-				static_cast<System::Int32>(static_cast<System::Byte>(125)));
-			this->eight_button->BackgroundImage = (cli::safe_cast<System::Drawing::Image^>(resources->GetObject(L"eight_button.BackgroundImage")));
-			this->eight_button->Cursor = System::Windows::Forms::Cursors::Cross;
-			this->eight_button->FlatStyle = System::Windows::Forms::FlatStyle::Popup;
-			this->eight_button->Font = (gcnew System::Drawing::Font(L"Microsoft YaHei", 1.5F, System::Drawing::FontStyle::Bold, System::Drawing::GraphicsUnit::Point,
-				static_cast<System::Byte>(204)));
-			this->eight_button->ForeColor = System::Drawing::Color::FromArgb(static_cast<System::Int32>(static_cast<System::Byte>(130)), static_cast<System::Int32>(static_cast<System::Byte>(125)),
-				static_cast<System::Int32>(static_cast<System::Byte>(125)));
-			this->eight_button->Location = System::Drawing::Point(80, 188);
-			this->eight_button->Name = L"eight_button";
-			this->eight_button->Size = System::Drawing::Size(65, 50);
-			this->eight_button->TabIndex = 8;
-			this->eight_button->Text = L"8";
-			this->eight_button->TextAlign = System::Drawing::ContentAlignment::TopLeft;
-			this->eight_button->UseVisualStyleBackColor = false;
-			this->eight_button->Click += gcnew System::EventHandler(this, &main_form::button_number_choise);
-			// 
-			// plus_button
-			// 
-			this->plus_button->BackColor = System::Drawing::Color::FromArgb(static_cast<System::Int32>(static_cast<System::Byte>(130)), static_cast<System::Int32>(static_cast<System::Byte>(125)),
-				static_cast<System::Int32>(static_cast<System::Byte>(125)));
-			this->plus_button->BackgroundImage = (cli::safe_cast<System::Drawing::Image^>(resources->GetObject(L"plus_button.BackgroundImage")));
-			this->plus_button->Cursor = System::Windows::Forms::Cursors::Hand;
-			this->plus_button->FlatStyle = System::Windows::Forms::FlatStyle::Popup;
-			this->plus_button->Font = (gcnew System::Drawing::Font(L"Microsoft YaHei", 1.5F, System::Drawing::FontStyle::Bold, System::Drawing::GraphicsUnit::Point,
-				static_cast<System::Byte>(204)));
-			this->plus_button->ForeColor = System::Drawing::Color::FromArgb(static_cast<System::Int32>(static_cast<System::Byte>(130)), static_cast<System::Int32>(static_cast<System::Byte>(125)),
-				static_cast<System::Int32>(static_cast<System::Byte>(125)));
-			this->plus_button->Location = System::Drawing::Point(222, 188);
-			this->plus_button->Name = L"plus_button";
-			this->plus_button->Size = System::Drawing::Size(65, 50);
-			this->plus_button->TabIndex = 9;
-			this->plus_button->Text = L"+";
-			this->plus_button->TextAlign = System::Drawing::ContentAlignment::TopLeft;
-			this->plus_button->UseVisualStyleBackColor = false;
-			this->plus_button->Click += gcnew System::EventHandler(this, &main_form::plus_button_Click);
-			// 
-			// seven_button
-			// 
-			this->seven_button->BackColor = System::Drawing::Color::FromArgb(static_cast<System::Int32>(static_cast<System::Byte>(130)), static_cast<System::Int32>(static_cast<System::Byte>(125)),
-				static_cast<System::Int32>(static_cast<System::Byte>(125)));
-			this->seven_button->BackgroundImage = (cli::safe_cast<System::Drawing::Image^>(resources->GetObject(L"seven_button.BackgroundImage")));
-			this->seven_button->Cursor = System::Windows::Forms::Cursors::Cross;
-			this->seven_button->FlatStyle = System::Windows::Forms::FlatStyle::Popup;
-			this->seven_button->Font = (gcnew System::Drawing::Font(L"Microsoft YaHei", 1.5F, System::Drawing::FontStyle::Bold, System::Drawing::GraphicsUnit::Point,
-				static_cast<System::Byte>(204)));
-			this->seven_button->ForeColor = System::Drawing::Color::FromArgb(static_cast<System::Int32>(static_cast<System::Byte>(130)), static_cast<System::Int32>(static_cast<System::Byte>(125)),
-				static_cast<System::Int32>(static_cast<System::Byte>(125)));
-			this->seven_button->Location = System::Drawing::Point(151, 188);
-			this->seven_button->Name = L"seven_button";
-			this->seven_button->Size = System::Drawing::Size(65, 50);
-			this->seven_button->TabIndex = 11;
-			this->seven_button->Text = L"7";
-			this->seven_button->TextAlign = System::Drawing::ContentAlignment::TopLeft;
-			this->seven_button->UseVisualStyleBackColor = false;
-			this->seven_button->Click += gcnew System::EventHandler(this, &main_form::button_number_choise);
-			// 
-			// four_button
-			// 
-			this->four_button->BackColor = System::Drawing::Color::FromArgb(static_cast<System::Int32>(static_cast<System::Byte>(130)), static_cast<System::Int32>(static_cast<System::Byte>(125)),
-				static_cast<System::Int32>(static_cast<System::Byte>(125)));
-			this->four_button->BackgroundImage = (cli::safe_cast<System::Drawing::Image^>(resources->GetObject(L"four_button.BackgroundImage")));
-			this->four_button->Cursor = System::Windows::Forms::Cursors::Cross;
-			this->four_button->FlatStyle = System::Windows::Forms::FlatStyle::Popup;
-			this->four_button->Font = (gcnew System::Drawing::Font(L"Microsoft YaHei", 1.5F, System::Drawing::FontStyle::Bold, System::Drawing::GraphicsUnit::Point,
-				static_cast<System::Byte>(204)));
-			this->four_button->ForeColor = System::Drawing::Color::FromArgb(static_cast<System::Int32>(static_cast<System::Byte>(130)), static_cast<System::Int32>(static_cast<System::Byte>(125)),
-				static_cast<System::Int32>(static_cast<System::Byte>(125)));
-			this->four_button->Location = System::Drawing::Point(151, 244);
-			this->four_button->Name = L"four_button";
-			this->four_button->Size = System::Drawing::Size(65, 50);
-			this->four_button->TabIndex = 12;
-			this->four_button->Text = L"4";
-			this->four_button->TextAlign = System::Drawing::ContentAlignment::TopLeft;
-			this->four_button->UseVisualStyleBackColor = false;
-			this->four_button->Click += gcnew System::EventHandler(this, &main_form::button_number_choise);
-			// 
-			// one_button
-			// 
-			this->one_button->BackColor = System::Drawing::Color::FromArgb(static_cast<System::Int32>(static_cast<System::Byte>(130)), static_cast<System::Int32>(static_cast<System::Byte>(125)),
-				static_cast<System::Int32>(static_cast<System::Byte>(125)));
-			this->one_button->BackgroundImage = (cli::safe_cast<System::Drawing::Image^>(resources->GetObject(L"one_button.BackgroundImage")));
-			this->one_button->Cursor = System::Windows::Forms::Cursors::Cross;
-			this->one_button->FlatStyle = System::Windows::Forms::FlatStyle::Popup;
-			this->one_button->Font = (gcnew System::Drawing::Font(L"Microsoft YaHei", 1.5F, System::Drawing::FontStyle::Bold, System::Drawing::GraphicsUnit::Point,
-				static_cast<System::Byte>(204)));
-			this->one_button->ForeColor = System::Drawing::Color::FromArgb(static_cast<System::Int32>(static_cast<System::Byte>(130)), static_cast<System::Int32>(static_cast<System::Byte>(125)),
-				static_cast<System::Int32>(static_cast<System::Byte>(125)));
-			this->one_button->Location = System::Drawing::Point(151, 300);
-			this->one_button->Name = L"one_button";
-			this->one_button->Size = System::Drawing::Size(65, 50);
-			this->one_button->TabIndex = 13;
-			this->one_button->Text = L"1";
-			this->one_button->TextAlign = System::Drawing::ContentAlignment::TopLeft;
-			this->one_button->UseVisualStyleBackColor = false;
-			this->one_button->Click += gcnew System::EventHandler(this, &main_form::button_number_choise);
-			// 
-			// six_button
-			// 
-			this->six_button->BackColor = System::Drawing::Color::FromArgb(static_cast<System::Int32>(static_cast<System::Byte>(130)), static_cast<System::Int32>(static_cast<System::Byte>(125)),
-				static_cast<System::Int32>(static_cast<System::Byte>(125)));
-			this->six_button->BackgroundImage = (cli::safe_cast<System::Drawing::Image^>(resources->GetObject(L"six_button.BackgroundImage")));
-			this->six_button->Cursor = System::Windows::Forms::Cursors::Cross;
-			this->six_button->FlatStyle = System::Windows::Forms::FlatStyle::Popup;
-			this->six_button->Font = (gcnew System::Drawing::Font(L"Microsoft YaHei", 1.5F, System::Drawing::FontStyle::Bold, System::Drawing::GraphicsUnit::Point,
-				static_cast<System::Byte>(204)));
-			this->six_button->ForeColor = System::Drawing::Color::FromArgb(static_cast<System::Int32>(static_cast<System::Byte>(130)), static_cast<System::Int32>(static_cast<System::Byte>(125)),
-				static_cast<System::Int32>(static_cast<System::Byte>(125)));
-			this->six_button->Location = System::Drawing::Point(9, 244);
-			this->six_button->Name = L"six_button";
-			this->six_button->Size = System::Drawing::Size(65, 50);
-			this->six_button->TabIndex = 14;
-			this->six_button->Text = L"6";
-			this->six_button->TextAlign = System::Drawing::ContentAlignment::TopLeft;
-			this->six_button->UseVisualStyleBackColor = false;
-			this->six_button->Click += gcnew System::EventHandler(this, &main_form::button_number_choise);
-			// 
-			// five_button
-			// 
-			this->five_button->BackColor = System::Drawing::Color::FromArgb(static_cast<System::Int32>(static_cast<System::Byte>(130)), static_cast<System::Int32>(static_cast<System::Byte>(125)),
-				static_cast<System::Int32>(static_cast<System::Byte>(125)));
-			this->five_button->BackgroundImage = (cli::safe_cast<System::Drawing::Image^>(resources->GetObject(L"five_button.BackgroundImage")));
-			this->five_button->Cursor = System::Windows::Forms::Cursors::Cross;
-			this->five_button->FlatStyle = System::Windows::Forms::FlatStyle::Popup;
-			this->five_button->Font = (gcnew System::Drawing::Font(L"Microsoft YaHei", 1.5F, System::Drawing::FontStyle::Bold, System::Drawing::GraphicsUnit::Point,
-				static_cast<System::Byte>(204)));
-			this->five_button->ForeColor = System::Drawing::Color::FromArgb(static_cast<System::Int32>(static_cast<System::Byte>(130)), static_cast<System::Int32>(static_cast<System::Byte>(125)),
-				static_cast<System::Int32>(static_cast<System::Byte>(125)));
-			this->five_button->Location = System::Drawing::Point(80, 244);
-			this->five_button->Name = L"five_button";
-			this->five_button->Size = System::Drawing::Size(65, 50);
-			this->five_button->TabIndex = 15;
-			this->five_button->Text = L"5";
-			this->five_button->TextAlign = System::Drawing::ContentAlignment::TopLeft;
-			this->five_button->UseVisualStyleBackColor = false;
-			this->five_button->Click += gcnew System::EventHandler(this, &main_form::button_number_choise);
-			// 
-			// multiplication_button
-			// 
-			this->multiplication_button->BackColor = System::Drawing::Color::FromArgb(static_cast<System::Int32>(static_cast<System::Byte>(130)),
-				static_cast<System::Int32>(static_cast<System::Byte>(125)), static_cast<System::Int32>(static_cast<System::Byte>(125)));
-			this->multiplication_button->BackgroundImage = (cli::safe_cast<System::Drawing::Image^>(resources->GetObject(L"multiplication_button.BackgroundImage")));
-			this->multiplication_button->Cursor = System::Windows::Forms::Cursors::Hand;
-			this->multiplication_button->FlatStyle = System::Windows::Forms::FlatStyle::Popup;
-			this->multiplication_button->Font = (gcnew System::Drawing::Font(L"Microsoft YaHei", 1.5F, System::Drawing::FontStyle::Bold, System::Drawing::GraphicsUnit::Point,
-				static_cast<System::Byte>(204)));
-			this->multiplication_button->ForeColor = System::Drawing::Color::FromArgb(static_cast<System::Int32>(static_cast<System::Byte>(130)),
-				static_cast<System::Int32>(static_cast<System::Byte>(125)), static_cast<System::Int32>(static_cast<System::Byte>(125)));
-			this->multiplication_button->Location = System::Drawing::Point(222, 132);
-			this->multiplication_button->Name = L"multiplication_button";
-			this->multiplication_button->Size = System::Drawing::Size(65, 50);
-			this->multiplication_button->TabIndex = 16;
-			this->multiplication_button->Text = L"*";
-			this->multiplication_button->TextAlign = System::Drawing::ContentAlignment::TopLeft;
-			this->multiplication_button->UseVisualStyleBackColor = false;
-			this->multiplication_button->Click += gcnew System::EventHandler(this, &main_form::multiplication_button_Click);
-			// 
-			// three_button
-			// 
-			this->three_button->BackColor = System::Drawing::Color::FromArgb(static_cast<System::Int32>(static_cast<System::Byte>(130)), static_cast<System::Int32>(static_cast<System::Byte>(125)),
-				static_cast<System::Int32>(static_cast<System::Byte>(125)));
-			this->three_button->BackgroundImage = (cli::safe_cast<System::Drawing::Image^>(resources->GetObject(L"three_button.BackgroundImage")));
-			this->three_button->Cursor = System::Windows::Forms::Cursors::Cross;
-			this->three_button->FlatStyle = System::Windows::Forms::FlatStyle::Popup;
-			this->three_button->Font = (gcnew System::Drawing::Font(L"Microsoft YaHei", 1.5F, System::Drawing::FontStyle::Bold, System::Drawing::GraphicsUnit::Point,
-				static_cast<System::Byte>(204)));
-			this->three_button->ForeColor = System::Drawing::Color::FromArgb(static_cast<System::Int32>(static_cast<System::Byte>(130)), static_cast<System::Int32>(static_cast<System::Byte>(125)),
-				static_cast<System::Int32>(static_cast<System::Byte>(125)));
-			this->three_button->Location = System::Drawing::Point(9, 300);
-			this->three_button->Name = L"three_button";
-			this->three_button->Size = System::Drawing::Size(65, 50);
-			this->three_button->TabIndex = 17;
-			this->three_button->Text = L"3";
-			this->three_button->TextAlign = System::Drawing::ContentAlignment::TopLeft;
-			this->three_button->UseVisualStyleBackColor = false;
-			this->three_button->Click += gcnew System::EventHandler(this, &main_form::button_number_choise);
-			// 
-			// two_button
-			// 
-			this->two_button->BackColor = System::Drawing::Color::FromArgb(static_cast<System::Int32>(static_cast<System::Byte>(130)), static_cast<System::Int32>(static_cast<System::Byte>(125)),
-				static_cast<System::Int32>(static_cast<System::Byte>(125)));
-			this->two_button->BackgroundImage = (cli::safe_cast<System::Drawing::Image^>(resources->GetObject(L"two_button.BackgroundImage")));
-			this->two_button->Cursor = System::Windows::Forms::Cursors::Cross;
-			this->two_button->FlatStyle = System::Windows::Forms::FlatStyle::Popup;
-			this->two_button->Font = (gcnew System::Drawing::Font(L"Microsoft YaHei", 1.5F, System::Drawing::FontStyle::Bold, System::Drawing::GraphicsUnit::Point,
-				static_cast<System::Byte>(204)));
-			this->two_button->ForeColor = System::Drawing::Color::FromArgb(static_cast<System::Int32>(static_cast<System::Byte>(130)), static_cast<System::Int32>(static_cast<System::Byte>(125)),
-				static_cast<System::Int32>(static_cast<System::Byte>(125)));
-			this->two_button->Location = System::Drawing::Point(80, 300);
-			this->two_button->Name = L"two_button";
-			this->two_button->Size = System::Drawing::Size(65, 50);
-			this->two_button->TabIndex = 18;
-			this->two_button->Text = L"2";
-			this->two_button->TextAlign = System::Drawing::ContentAlignment::TopLeft;
-			this->two_button->UseVisualStyleBackColor = false;
-			this->two_button->Click += gcnew System::EventHandler(this, &main_form::button_number_choise);
-			// 
-			// minus_button
-			// 
-			this->minus_button->BackColor = System::Drawing::Color::FromArgb(static_cast<System::Int32>(static_cast<System::Byte>(130)), static_cast<System::Int32>(static_cast<System::Byte>(125)),
-				static_cast<System::Int32>(static_cast<System::Byte>(125)));
-			this->minus_button->BackgroundImage = (cli::safe_cast<System::Drawing::Image^>(resources->GetObject(L"minus_button.BackgroundImage")));
-			this->minus_button->Cursor = System::Windows::Forms::Cursors::Hand;
-			this->minus_button->FlatStyle = System::Windows::Forms::FlatStyle::Popup;
-			this->minus_button->Font = (gcnew System::Drawing::Font(L"Microsoft YaHei", 1.5F, System::Drawing::FontStyle::Bold, System::Drawing::GraphicsUnit::Point,
-				static_cast<System::Byte>(204)));
-			this->minus_button->Location = System::Drawing::Point(222, 244);
-			this->minus_button->Name = L"minus_button";
-			this->minus_button->Size = System::Drawing::Size(65, 50);
-			this->minus_button->TabIndex = 19;
-			this->minus_button->Text = L"-";
-			this->minus_button->TextAlign = System::Drawing::ContentAlignment::TopLeft;
-			this->minus_button->UseVisualStyleBackColor = false;
-			this->minus_button->Click += gcnew System::EventHandler(this, &main_form::minus_button_Click);
-			// 
-			// zero_button
-			// 
-			this->zero_button->BackColor = System::Drawing::Color::FromArgb(static_cast<System::Int32>(static_cast<System::Byte>(130)), static_cast<System::Int32>(static_cast<System::Byte>(125)),
-				static_cast<System::Int32>(static_cast<System::Byte>(125)));
-			this->zero_button->BackgroundImage = (cli::safe_cast<System::Drawing::Image^>(resources->GetObject(L"zero_button.BackgroundImage")));
-			this->zero_button->Cursor = System::Windows::Forms::Cursors::Cross;
-			this->zero_button->FlatStyle = System::Windows::Forms::FlatStyle::Popup;
-			this->zero_button->Font = (gcnew System::Drawing::Font(L"Microsoft YaHei", 1.5F, System::Drawing::FontStyle::Bold, System::Drawing::GraphicsUnit::Point,
-				static_cast<System::Byte>(204)));
-			this->zero_button->ForeColor = System::Drawing::Color::FromArgb(static_cast<System::Int32>(static_cast<System::Byte>(130)), static_cast<System::Int32>(static_cast<System::Byte>(125)),
-				static_cast<System::Int32>(static_cast<System::Byte>(125)));
-			this->zero_button->Location = System::Drawing::Point(80, 356);
-			this->zero_button->Name = L"zero_button";
-			this->zero_button->Size = System::Drawing::Size(65, 50);
-			this->zero_button->TabIndex = 20;
-			this->zero_button->Text = L"0";
-			this->zero_button->TextAlign = System::Drawing::ContentAlignment::TopLeft;
-			this->zero_button->UseVisualStyleBackColor = false;
-			this->zero_button->Click += gcnew System::EventHandler(this, &main_form::button_number_choise);
-			// 
-			// dot_button
-			// 
-			this->dot_button->BackColor = System::Drawing::Color::FromArgb(static_cast<System::Int32>(static_cast<System::Byte>(130)), static_cast<System::Int32>(static_cast<System::Byte>(125)),
-				static_cast<System::Int32>(static_cast<System::Byte>(125)));
-			this->dot_button->BackgroundImage = (cli::safe_cast<System::Drawing::Image^>(resources->GetObject(L"dot_button.BackgroundImage")));
-			this->dot_button->Cursor = System::Windows::Forms::Cursors::Hand;
-			this->dot_button->FlatStyle = System::Windows::Forms::FlatStyle::Popup;
-			this->dot_button->Font = (gcnew System::Drawing::Font(L"Microsoft YaHei", 1.5F, System::Drawing::FontStyle::Bold, System::Drawing::GraphicsUnit::Point,
-				static_cast<System::Byte>(204)));
-			this->dot_button->ForeColor = System::Drawing::Color::FromArgb(static_cast<System::Int32>(static_cast<System::Byte>(130)), static_cast<System::Int32>(static_cast<System::Byte>(125)),
-				static_cast<System::Int32>(static_cast<System::Byte>(125)));
-			this->dot_button->Location = System::Drawing::Point(151, 356);
-			this->dot_button->Name = L"dot_button";
-			this->dot_button->Size = System::Drawing::Size(65, 50);
-			this->dot_button->TabIndex = 21;
-			this->dot_button->Text = L".";
-			this->dot_button->TextAlign = System::Drawing::ContentAlignment::TopLeft;
-			this->dot_button->UseVisualStyleBackColor = false;
-			this->dot_button->Click += gcnew System::EventHandler(this, &main_form::dot_button_Click);
-			// 
-			// equals_button
-			// 
-			this->equals_button->BackColor = System::Drawing::Color::FromArgb(static_cast<System::Int32>(static_cast<System::Byte>(130)), static_cast<System::Int32>(static_cast<System::Byte>(125)),
-				static_cast<System::Int32>(static_cast<System::Byte>(125)));
-			this->equals_button->Cursor = System::Windows::Forms::Cursors::Hand;
-			this->equals_button->FlatStyle = System::Windows::Forms::FlatStyle::Popup;
-			this->equals_button->Font = (gcnew System::Drawing::Font(L"Microsoft YaHei", 14.25F, System::Drawing::FontStyle::Bold, System::Drawing::GraphicsUnit::Point,
-				static_cast<System::Byte>(204)));
-			this->equals_button->Location = System::Drawing::Point(222, 300);
-			this->equals_button->Name = L"equals_button";
-			this->equals_button->Size = System::Drawing::Size(65, 106);
-			this->equals_button->TabIndex = 22;
-			this->equals_button->Text = L"=";
-			this->equals_button->UseVisualStyleBackColor = false;
-			this->equals_button->Click += gcnew System::EventHandler(this, &main_form::equals_button_Click);
-			// 
-			// large_form_button
-			// 
-			this->large_form_button->BackColor = System::Drawing::Color::FromArgb(static_cast<System::Int32>(static_cast<System::Byte>(130)),
-				static_cast<System::Int32>(static_cast<System::Byte>(125)), static_cast<System::Int32>(static_cast<System::Byte>(125)));
-			this->large_form_button->Location = System::Drawing::Point(39, 3);
-			this->large_form_button->Name = L"large_form_button";
-			this->large_form_button->Size = System::Drawing::Size(52, 30);
-			this->large_form_button->TabIndex = 23;
-			this->large_form_button->Text = L"large";
-			this->large_form_button->UseVisualStyleBackColor = false;
-			this->large_form_button->Click += gcnew System::EventHandler(this, &main_form::large_form_button_Click);
-			// 
-			// button1
-			// 
-			this->button1->BackgroundImage = (cli::safe_cast<System::Drawing::Image^>(resources->GetObject(L"button1.BackgroundImage")));
-			this->button1->BackgroundImageLayout = System::Windows::Forms::ImageLayout::Center;
-			this->button1->FlatStyle = System::Windows::Forms::FlatStyle::Flat;
-			this->button1->ForeColor = System::Drawing::Color::FromArgb(static_cast<System::Int32>(static_cast<System::Byte>(64)), static_cast<System::Int32>(static_cast<System::Byte>(62)),
-				static_cast<System::Int32>(static_cast<System::Byte>(62)));
-			this->button1->Location = System::Drawing::Point(260, 3);
-			this->button1->Name = L"button1";
-			this->button1->Size = System::Drawing::Size(30, 30);
-			this->button1->TabIndex = 24;
-			this->button1->UseVisualStyleBackColor = true;
-			this->button1->Click += gcnew System::EventHandler(this, &main_form::button1_Click);
-			// 
-			// main_form
-			// 
-			this->AutoScaleDimensions = System::Drawing::SizeF(7, 16);
-			this->AutoScaleMode = System::Windows::Forms::AutoScaleMode::Font;
-			this->BackColor = System::Drawing::Color::FromArgb(static_cast<System::Int32>(static_cast<System::Byte>(64)), static_cast<System::Int32>(static_cast<System::Byte>(62)),
-				static_cast<System::Int32>(static_cast<System::Byte>(62)));
-			this->ClientSize = System::Drawing::Size(300, 420);
-			this->Controls->Add(this->button1);
-			this->Controls->Add(this->large_form_button);
-			this->Controls->Add(this->result_lable);
-			this->Controls->Add(this->equals_button);
-			this->Controls->Add(this->dot_button);
-			this->Controls->Add(this->zero_button);
-			this->Controls->Add(this->minus_button);
-			this->Controls->Add(this->two_button);
-			this->Controls->Add(this->three_button);
-			this->Controls->Add(this->multiplication_button);
-			this->Controls->Add(this->five_button);
-			this->Controls->Add(this->six_button);
-			this->Controls->Add(this->one_button);
-			this->Controls->Add(this->four_button);
-			this->Controls->Add(this->seven_button);
-			this->Controls->Add(this->plus_button);
-			this->Controls->Add(this->eight_button);
-			this->Controls->Add(this->nine_button);
-			this->Controls->Add(this->clear_button);
-			this->Controls->Add(this->division_button);
-			this->Controls->Add(this->ttr_button);
-			this->Controls->Add(this->negative_pozitive_button);
-			this->Controls->Add(this->exit_button_main);
-			this->Cursor = System::Windows::Forms::Cursors::Hand;
-			this->Font = (gcnew System::Drawing::Font(L"Microsoft YaHei", 8.25F, System::Drawing::FontStyle::Bold, System::Drawing::GraphicsUnit::Point,
-				static_cast<System::Byte>(204)));
-			this->ForeColor = System::Drawing::Color::White;
-			this->FormBorderStyle = System::Windows::Forms::FormBorderStyle::None;
-			this->Icon = (cli::safe_cast<System::Drawing::Icon^>(resources->GetObject(L"$this.Icon")));
-			this->Margin = System::Windows::Forms::Padding(4);
-			this->Name = L"main_form";
-			this->StartPosition = System::Windows::Forms::FormStartPosition::CenterScreen;
-			this->Text = L"Calculaor";
-			this->ResumeLayout(false);
+        void InitializeComponent(void)
+        {
+            this->expressionBox = (gcnew System::Windows::Forms::TextBox());
+            this->btnSin = (gcnew System::Windows::Forms::Button());
+            this->btnCos = (gcnew System::Windows::Forms::Button());
+            this->btnTan = (gcnew System::Windows::Forms::Button());
+            this->btnCot = (gcnew System::Windows::Forms::Button());
+            this->btnSqrt = (gcnew System::Windows::Forms::Button());
+            this->btnPower = (gcnew System::Windows::Forms::Button());
+            this->btnOpenParen = (gcnew System::Windows::Forms::Button());
+            this->btnCloseParen = (gcnew System::Windows::Forms::Button());
+            this->btnBack = (gcnew System::Windows::Forms::Button());
+            this->btnClear = (gcnew System::Windows::Forms::Button());
+            this->btnEquals = (gcnew System::Windows::Forms::Button());
+            this->btnTrig = (gcnew System::Windows::Forms::Button());
+            this->trigMenu = (gcnew System::Windows::Forms::Panel());
+            this->btnMainForm = (gcnew System::Windows::Forms::Button());
+            this->btn0 = (gcnew System::Windows::Forms::Button());
+            this->btn1 = (gcnew System::Windows::Forms::Button());
+            this->btn2 = (gcnew System::Windows::Forms::Button());
+            this->btn3 = (gcnew System::Windows::Forms::Button());
+            this->btn4 = (gcnew System::Windows::Forms::Button());
+            this->btn5 = (gcnew System::Windows::Forms::Button());
+            this->btn6 = (gcnew System::Windows::Forms::Button());
+            this->btn7 = (gcnew System::Windows::Forms::Button());
+            this->btn8 = (gcnew System::Windows::Forms::Button());
+            this->btn9 = (gcnew System::Windows::Forms::Button());
+            this->btnPlus = (gcnew System::Windows::Forms::Button());
+            this->btnMinus = (gcnew System::Windows::Forms::Button());
+            this->btnMultiply = (gcnew System::Windows::Forms::Button());
+            this->btnDivide = (gcnew System::Windows::Forms::Button());
+            this->btnDot = (gcnew System::Windows::Forms::Button());
+            this->btnSign = (gcnew System::Windows::Forms::Button());
+            this->trigMenu->SuspendLayout();
+            this->SuspendLayout();
+            // 
+            // expressionBox
+            // 
+            this->expressionBox->Font = (gcnew System::Drawing::Font(L"Microsoft Sans Serif", 18, System::Drawing::FontStyle::Regular, System::Drawing::GraphicsUnit::Point, 
+                static_cast<System::Byte>(204)));
+            this->expressionBox->Location = System::Drawing::Point(12, 12);
+            this->expressionBox->Multiline = true;
+            this->expressionBox->Name = L"expressionBox";
+            this->expressionBox->Size = System::Drawing::Size(460, 40);
+            this->expressionBox->TabIndex = 0;
+            this->expressionBox->TextAlign = System::Windows::Forms::HorizontalAlignment::Right;
+            // 
+            // btnSin
+            // 
+            this->btnSin->Location = System::Drawing::Point(12, 70);
+            this->btnSin->Name = L"btnSin";
+            this->btnSin->Size = System::Drawing::Size(75, 40);
+            this->btnSin->TabIndex = 1;
+            this->btnSin->Text = L"sin";
+            this->btnSin->UseVisualStyleBackColor = true;
+            this->btnSin->Click += gcnew System::EventHandler(this, &large_form::btnSin_Click);
+            // 
+            // btnCos
+            // 
+            this->btnCos->Location = System::Drawing::Point(93, 70);
+            this->btnCos->Name = L"btnCos";
+            this->btnCos->Size = System::Drawing::Size(75, 40);
+            this->btnCos->TabIndex = 2;
+            this->btnCos->Text = L"cos";
+            this->btnCos->UseVisualStyleBackColor = true;
+            this->btnCos->Click += gcnew System::EventHandler(this, &large_form::btnCos_Click);
+            // 
+            // btnTan
+            // 
+            this->btnTan->Location = System::Drawing::Point(174, 70);
+            this->btnTan->Name = L"btnTan";
+            this->btnTan->Size = System::Drawing::Size(75, 40);
+            this->btnTan->TabIndex = 3;
+            this->btnTan->Text = L"tan";
+            this->btnTan->UseVisualStyleBackColor = true;
+            this->btnTan->Click += gcnew System::EventHandler(this, &large_form::btnTan_Click);
+            // 
+            // btnCot
+            // 
+            this->btnCot->Location = System::Drawing::Point(255, 70);
+            this->btnCot->Name = L"btnCot";
+            this->btnCot->Size = System::Drawing::Size(75, 40);
+            this->btnCot->TabIndex = 4;
+            this->btnCot->Text = L"cot";
+            this->btnCot->UseVisualStyleBackColor = true;
+            this->btnCot->Click += gcnew System::EventHandler(this, &large_form::btnCot_Click);
+            // 
+            // btnSqrt
+            // 
+            this->btnSqrt->Location = System::Drawing::Point(336, 70);
+            this->btnSqrt->Name = L"btnSqrt";
+            this->btnSqrt->Size = System::Drawing::Size(75, 40);
+            this->btnSqrt->TabIndex = 5;
+            this->btnSqrt->Text = L"√";
+            this->btnSqrt->UseVisualStyleBackColor = true;
+            this->btnSqrt->Click += gcnew System::EventHandler(this, &large_form::btnSqrt_Click);
+            // 
+            // btnPower
+            // 
+            this->btnPower->Location = System::Drawing::Point(417, 70);
+            this->btnPower->Name = L"btnPower";
+            this->btnPower->Size = System::Drawing::Size(75, 40);
+            this->btnPower->TabIndex = 6;
+            this->btnPower->Text = L"^";
+            this->btnPower->UseVisualStyleBackColor = true;
+            this->btnPower->Click += gcnew System::EventHandler(this, &large_form::btnPower_Click);
+            // 
+            // btnOpenParen
+            // 
+            this->btnOpenParen->Location = System::Drawing::Point(12, 116);
+            this->btnOpenParen->Name = L"btnOpenParen";
+            this->btnOpenParen->Size = System::Drawing::Size(75, 40);
+            this->btnOpenParen->TabIndex = 7;
+            this->btnOpenParen->Text = L"(";
+            this->btnOpenParen->UseVisualStyleBackColor = true;
+            this->btnOpenParen->Click += gcnew System::EventHandler(this, &large_form::btnOpenParen_Click);
+            // 
+            // btnCloseParen
+            // 
+            this->btnCloseParen->Location = System::Drawing::Point(93, 116);
+            this->btnCloseParen->Name = L"btnCloseParen";
+            this->btnCloseParen->Size = System::Drawing::Size(75, 40);
+            this->btnCloseParen->TabIndex = 8;
+            this->btnCloseParen->Text = L")";
+            this->btnCloseParen->UseVisualStyleBackColor = true;
+            this->btnCloseParen->Click += gcnew System::EventHandler(this, &large_form::btnCloseParen_Click);
+            // 
+            // btnBack
+            // 
+            this->btnBack->Location = System::Drawing::Point(174, 116);
+            this->btnBack->Name = L"btnBack";
+            this->btnBack->Size = System::Drawing::Size(75, 40);
+            this->btnBack->TabIndex = 9;
+            this->btnBack->Text = L"←";
+            this->btnBack->UseVisualStyleBackColor = true;
+            this->btnBack->Click += gcnew System::EventHandler(this, &large_form::btnBack_Click);
+            // 
+            // btnClear
+            // 
+            this->btnClear->Location = System::Drawing::Point(255, 116);
+            this->btnClear->Name = L"btnClear";
+            this->btnClear->Size = System::Drawing::Size(75, 40);
+            this->btnClear->TabIndex = 10;
+            this->btnClear->Text = L"C";
+            this->btnClear->UseVisualStyleBackColor = true;
+            this->btnClear->Click += gcnew System::EventHandler(this, &large_form::btnClear_Click);
+            // 
+            // btnEquals
+            // 
+            this->btnEquals->Location = System::Drawing::Point(336, 116);
+            this->btnEquals->Name = L"btnEquals";
+            this->btnEquals->Size = System::Drawing::Size(156, 40);
+            this->btnEquals->TabIndex = 11;
+            this->btnEquals->Text = L"=";
+            this->btnEquals->UseVisualStyleBackColor = true;
+            this->btnEquals->Click += gcnew System::EventHandler(this, &large_form::btnEquals_Click);
+            // 
+            // btnTrig
+            // 
+            this->btnTrig->Location = System::Drawing::Point(417, 116);
+            this->btnTrig->Name = L"btnTrig";
+            this->btnTrig->Size = System::Drawing::Size(75, 40);
+            this->btnTrig->TabIndex = 12;
+            this->btnTrig->Text = L"Trig";
+            this->btnTrig->UseVisualStyleBackColor = true;
+            this->btnTrig->Click += gcnew System::EventHandler(this, &large_form::btnTrig_Click);
+            // 
+            // trigMenu
+            // 
+            this->trigMenu->Controls->Add(this->btnSin);
+            this->trigMenu->Controls->Add(this->btnCos);
+            this->trigMenu->Controls->Add(this->btnTan);
+            this->trigMenu->Controls->Add(this->btnCot);
+            this->trigMenu->Location = System::Drawing::Point(12, 70);
+            this->trigMenu->Name = L"trigMenu";
+            this->trigMenu->Size = System::Drawing::Size(318, 40);
+            this->trigMenu->TabIndex = 13;
+            // 
+            // btnMainForm
+            // 
+            this->btnMainForm->Location = System::Drawing::Point(12, 380);
+            this->btnMainForm->Name = L"btnMainForm";
+            this->btnMainForm->Size = System::Drawing::Size(100, 30);
+            this->btnMainForm->TabIndex = 14;
+            this->btnMainForm->Text = L"Basic Calc";
+            this->btnMainForm->UseVisualStyleBackColor = true;
+            this->btnMainForm->Click += gcnew System::EventHandler(this, &large_form::btnMainForm_Click);
+            // 
+            // btn0
+            // 
+            this->btn0->Location = System::Drawing::Point(93, 324);
+            this->btn0->Name = L"btn0";
+            this->btn0->Size = System::Drawing::Size(75, 40);
+            this->btn0->TabIndex = 15;
+            this->btn0->Text = L"0";
+            this->btn0->UseVisualStyleBackColor = true;
+            this->btn0->Click += gcnew System::EventHandler(this, &large_form::NumberButton_Click);
+            // 
+            // btn1
+            // 
+            this->btn1->Location = System::Drawing::Point(12, 278);
+            this->btn1->Name = L"btn1";
+            this->btn1->Size = System::Drawing::Size(75, 40);
+            this->btn1->TabIndex = 16;
+            this->btn1->Text = L"1";
+            this->btn1->UseVisualStyleBackColor = true;
+            this->btn1->Click += gcnew System::EventHandler(this, &large_form::NumberButton_Click);
+            // 
+            // btn2
+            // 
+            this->btn2->Location = System::Drawing::Point(93, 278);
+            this->btn2->Name = L"btn2";
+            this->btn2->Size = System::Drawing::Size(75, 40);
+            this->btn2->TabIndex = 17;
+            this->btn2->Text = L"2";
+            this->btn2->UseVisualStyleBackColor = true;
+            this->btn2->Click += gcnew System::EventHandler(this, &large_form::NumberButton_Click);
+            // 
+            // btn3
+            // 
+            this->btn3->Location = System::Drawing::Point(174, 278);
+            this->btn3->Name = L"btn3";
+            this->btn3->Size = System::Drawing::Size(75, 40);
+            this->btn3->TabIndex = 18;
+            this->btn3->Text = L"3";
+            this->btn3->UseVisualStyleBackColor = true;
+            this->btn3->Click += gcnew System::EventHandler(this, &large_form::NumberButton_Click);
+            // 
+            // btn4
+            // 
+            this->btn4->Location = System::Drawing::Point(12, 232);
+            this->btn4->Name = L"btn4";
+            this->btn4->Size = System::Drawing::Size(75, 40);
+            this->btn4->TabIndex = 19;
+            this->btn4->Text = L"4";
+            this->btn4->UseVisualStyleBackColor = true;
+            this->btn4->Click += gcnew System::EventHandler(this, &large_form::NumberButton_Click);
+            // 
+            // btn5
+            // 
+            this->btn5->Location = System::Drawing::Point(93, 232);
+            this->btn5->Name = L"btn5";
+            this->btn5->Size = System::Drawing::Size(75, 40);
+            this->btn5->TabIndex = 20;
+            this->btn5->Text = L"5";
+            this->btn5->UseVisualStyleBackColor = true;
+            this->btn5->Click += gcnew System::EventHandler(this, &large_form::NumberButton_Click);
+            // 
+            // btn6
+            // 
+            this->btn6->Location = System::Drawing::Point(174, 232);
+            this->btn6->Name = L"btn6";
+            this->btn6->Size = System::Drawing::Size(75, 40);
+            this->btn6->TabIndex = 21;
+            this->btn6->Text = L"6";
+            this->btn6->UseVisualStyleBackColor = true;
+            this->btn6->Click += gcnew System::EventHandler(this, &large_form::NumberButton_Click);
+            // 
+            // btn7
+            // 
+            this->btn7->Location = System::Drawing::Point(12, 186);
+            this->btn7->Name = L"btn7";
+            this->btn7->Size = System::Drawing::Size(75, 40);
+            this->btn7->TabIndex = 22;
+            this->btn7->Text = L"7";
+            this->btn7->UseVisualStyleBackColor = true;
+            this->btn7->Click += gcnew System::EventHandler(this, &large_form::NumberButton_Click);
+            // 
+            // btn8
+            // 
+            this->btn8->Location = System::Drawing::Point(93, 186);
+            this->btn8->Name = L"btn8";
+            this->btn8->Size = System::Drawing::Size(75, 40);
+            this->btn8->TabIndex = 23;
+            this->btn8->Text = L"8";
+            this->btn8->UseVisualStyleBackColor = true;
+            this->btn8->Click += gcnew System::EventHandler(this, &large_form::NumberButton_Click);
+            // 
+            // btn9
+            // 
+            this->btn9->Location = System::Drawing::Point(174, 186);
+            this->btn9->Name = L"btn9";
+            this->btn9->Size = System::Drawing::Size(75, 40);
+            this->btn9->TabIndex = 24;
+            this->btn9->Text = L"9";
+            this->btn9->UseVisualStyleBackColor = true;
+            this->btn9->Click += gcnew System::EventHandler(this, &large_form::NumberButton_Click);
+            // 
+            // btnPlus
+            // 
+            this->btnPlus->Location = System::Drawing::Point(255, 186);
+            this->btnPlus->Name = L"btnPlus";
+            this->btnPlus->Size = System::Drawing::Size(75, 40);
+            this->btnPlus->TabIndex = 25;
+            this->btnPlus->Text = L"+";
+            this->btnPlus->UseVisualStyleBackColor = true;
+            this->btnPlus->Click += gcnew System::EventHandler(this, &large_form::OperatorButton_Click);
+            // 
+            // btnMinus
+            // 
+            this->btnMinus->Location = System::Drawing::Point(255, 232);
+            this->btnMinus->Name = L"btnMinus";
+            this->btnMinus->Size = System::Drawing::Size(75, 40);
+            this->btnMinus->TabIndex = 26;
+            this->btnMinus->Text = L"-";
+            this->btnMinus->UseVisualStyleBackColor = true;
+            this->btnMinus->Click += gcnew System::EventHandler(this, &large_form::OperatorButton_Click);
+            // 
+            // btnMultiply
+            // 
+            this->btnMultiply->Location = System::Drawing::Point(255, 278);
+            this->btnMultiply->Name = L"btnMultiply";
+            this->btnMultiply->Size = System::Drawing::Size(75, 40);
+            this->btnMultiply->TabIndex = 27;
+            this->btnMultiply->Text = L"*";
+            this->btnMultiply->UseVisualStyleBackColor = true;
+            this->btnMultiply->Click += gcnew System::EventHandler(this, &large_form::OperatorButton_Click);
+            // 
+            // btnDivide
+            // 
+            this->btnDivide->Location = System::Drawing::Point(255, 324);
+            this->btnDivide->Name = L"btnDivide";
+            this->btnDivide->Size = System::Drawing::Size(75, 40);
+            this->btnDivide->TabIndex = 28;
+            this->btnDivide->Text = L"/";
+            this->btnDivide->UseVisualStyleBackColor = true;
+            this->btnDivide->Click += gcnew System::EventHandler(this, &large_form::OperatorButton_Click);
+            // 
+            // btnDot
+            // 
+            this->btnDot->Location = System::Drawing::Point(174, 324);
+            this->btnDot->Name = L"btnDot";
+            this->btnDot->Size = System::Drawing::Size(75, 40);
+            this->btnDot->TabIndex = 29;
+            this->btnDot->Text = L".";
+            this->btnDot->UseVisualStyleBackColor = true;
+            this->btnDot->Click += gcnew System::EventHandler(this, &large_form::btnDot_Click);
+            // 
+            // btnSign
+            // 
+            this->btnSign->Location = System::Drawing::Point(12, 324);
+            this->btnSign->Name = L"btnSign";
+            this->btnSign->Size = System::Drawing::Size(75, 40);
+            this->btnSign->TabIndex = 30;
+            this->btnSign->Text = L"+/-";
+            this->btnSign->UseVisualStyleBackColor = true;
+            this->btnSign->Click += gcnew System::EventHandler(this, &large_form::btnSign_Click);
+            // 
+            // large_form
+            // 
+            this->AutoScaleDimensions = System::Drawing::SizeF(8, 16);
+            this->AutoScaleMode = System::Windows::Forms::AutoScaleMode::Font;
+            this->ClientSize = System::Drawing::Size(484, 422);
+            this->Controls->Add(this->btnSign);
+            this->Controls->Add(this->btnDot);
+            this->Controls->Add(this->btnDivide);
+            this->Controls->Add(this->btnMultiply);
+            this->Controls->Add(this->btnMinus);
+            this->Controls->Add(this->btnPlus);
+            this->Controls->Add(this->btn9);
+            this->Controls->Add(this->btn8);
+            this->Controls->Add(this->btn7);
+            this->Controls->Add(this->btn6);
+            this->Controls->Add(this->btn5);
+            this->Controls->Add(this->btn4);
+            this->Controls->Add(this->btn3);
+            this->Controls->Add(this->btn2);
+            this->Controls->Add(this->btn1);
+            this->Controls->Add(this->btn0);
+            this->Controls->Add(this->btnMainForm);
+            this->Controls->Add(this->trigMenu);
+            this->Controls->Add(this->btnTrig);
+            this->Controls->Add(this->btnEquals);
+            this->Controls->Add(this->btnClear);
+            this->Controls->Add(this->btnBack);
+            this->Controls->Add(this->btnCloseParen);
+            this->Controls->Add(this->btnOpenParen);
+            this->Controls->Add(this->btnPower);
+            this->Controls->Add(this->btnSqrt);
+            this->Controls->Add(this->btnCot);
+            this->Controls->Add(this->btnTan);
+            this->Controls->Add(this->btnCos);
+            this->Controls->Add(this->btnSin);
+            this->Controls->Add(this->expressionBox);
+            this->Name = L"large_form";
+            this->Text = L"Advanced Calculator";
+            this->trigMenu->ResumeLayout(false);
+            this->ResumeLayout(false);
+            this->PerformLayout();
 
-		}
+        }
 #pragma endregion
 
-	private: System::Void exit_button_main_Click(System::Object^ sender, System::EventArgs^ e)
-	{
-		this->Close();
-	}
+    private:
+        void InitializeTrigMenu()
+        {
+            // Trig menu is already initialized in InitializeComponent
+        }
 
-	private: System::Void button_number_choise(System::Object^ sender, System::EventArgs^ e)
-	{
-		Button^ button = safe_cast<Button^>(sender);
+        // Helper function to evaluate expressions
+        double EvaluateExpression(System::String^ expression)
+        {
+            // Convert System::String to std::string
+            std::string expr = msclr::interop::marshal_as<std::string>(expression);
 
-		if (this->result_lable->Text == "0")
-			this->result_lable->Text = button->Text;
-		else
-			this->result_lable->Text += button->Text;
-	}
-	private: System::Void plus_button_Click(System::Object^ sender, System::EventArgs^ e)
-	{
-		math_action('+');
-	}
-	private: System::Void minus_button_Click(System::Object^ sender, System::EventArgs^ e)
-	{
-		math_action('-');
-	}
-	private: System::Void multiplication_button_Click(System::Object^ sender, System::EventArgs^ e)
-	{
-		math_action('*');
-	}
-	private: System::Void division_button_Click(System::Object^ sender, System::EventArgs^ e)
-	{
-		math_action('/');
-	}
-	private: System::Void math_action(char action)
-	{
-		this->first_num = System::Convert::ToDouble(this->result_lable->Text);
-		this->user_action = action;
-		this->result_lable->Text = "0";
-	}
-	private: System::Void equals_button_Click(System::Object^ sender, System::EventArgs^ e)
-	{
-		double second_num;
-		double result;
+            // Remove all whitespace
+            expr.erase(std::remove_if(expr.begin(), expr.end(), ::isspace), expr.end());
 
-		second_num = System::Convert::ToDouble(this->result_lable->Text);
-		result = 1;
+            std::stack<double> values;
+            std::stack<char> ops;
 
-		switch (this->user_action)
-		{
-		case '+':
-		{
-			result = this->first_num + second_num;
-			break;
-		}
-		case '-':
-		{
-			result = this->first_num - second_num;
-			break;
-		}
-		case '*':
-		{
-			result = this->first_num * second_num;
-			break;
-		}
-		case '/':
-		{
-			result = this->first_num / second_num;
-			break;
-		}
-		}
+            for (size_t i = 0; i < expr.length(); i++) {
+                if (expr[i] == ' ')
+                    continue;
 
-		this->result_lable->Text = System::Convert::ToString(result);
-	}
-	private: System::Void large_form_button_Click(System::Object^ sender, System::EventArgs^ e)
-	{
-		large_form^ large_form1 = gcnew large_form();
-		large_form1->Show();
-		this->Hide();
-	}
-	private: System::Void button1_Click(System::Object^ sender, System::EventArgs^ e)
-	{
-		System::Diagnostics::Process::Start("https://github.com/L1ghtsitte/calculator");
-	}
-	private: System::Void clear_button_Click(System::Object^ sender, System::EventArgs^ e)
-	{
-		this->result_lable->Text = "0";
-		this->first_num = 0;
-		this->user_action = '\0';
-	}
-	private: System::Void dot_button_Click(System::Object^ sender, System::EventArgs^ e)
-	{
-		if (!this->result_lable->Text->Contains(", "))
-		{
-			this->result_lable->Text += ",";
-		}
-	}
-	private: System::Void negative_pozitive_button_Click(System::Object^ sender, System::EventArgs^ e)
-	{
-		if (this->result_lable->Text->StartsWith("-"))
-		{
-			this->result_lable->Text = this->result_lable->Text->Substring(1);
-		}
-		else
-		{
-			this->result_lable->Text = "-" + this->result_lable->Text;
-		}
-	}
-	};
+                if (expr[i] == '(') {
+                    ops.push(expr[i]);
+                }
+                else if (isdigit(expr[i]) {
+                    double val = 0;
+                    bool decimal = false;
+                    double decimalPlace = 0.1;
+                    bool negative = false;
+
+                    if (i > 0 && expr[i - 1] == '-') {
+                        negative = true;
+                        if (!ops.empty() && ops.top() == '-') {
+                            ops.pop();
+                        }
+                    }
+
+                    while (i < expr.length() && (isdigit(expr[i]) || expr[i] == '.')) {
+                        if (expr[i] == '.') {
+                            decimal = true;
+                        }
+                        else {
+                            if (!decimal) {
+                                val = val * 10 + (expr[i] - '0');
+                            }
+                            else {
+                                val = val + (expr[i] - '0') * decimalPlace;
+                                decimalPlace /= 10;
+                            }
+                        }
+                        i++;
+                    }
+
+                    if (negative) {
+                        val = -val;
+                    }
+
+                    values.push(val);
+                    i--;
+                }
+                else if (expr[i] == ')') {
+                    while (!ops.empty() && ops.top() != '(') {
+                        double val2 = values.top();
+                        values.pop();
+
+                        double val1 = values.top();
+                        values.pop();
+
+                        char op = ops.top();
+                        ops.pop();
+
+                        values.push(ApplyOp(val1, val2, op));
+                    }
+
+                    if (!ops.empty())
+                        ops.pop();
+                }
+                else {
+                    while (!ops.empty() && Precedence(ops.top()) >= Precedence(expr[i])) {
+                        double val2 = values.top();
+                        values.pop();
+
+                        double val1 = values.top();
+                        values.pop();
+
+                        char op = ops.top();
+                        ops.pop();
+
+                        values.push(ApplyOp(val1, val2, op));
+                    }
+
+                    ops.push(expr[i]);
+                }
+            }
+
+            while (!ops.empty()) {
+                double val2 = values.top();
+                values.pop();
+
+                double val1 = values.top();
+                values.pop();
+
+                char op = ops.top();
+                ops.pop();
+
+                values.push(ApplyOp(val1, val2, op));
+            }
+
+            return values.top();
+        }
+
+        int Precedence(char op)
+        {
+            if (op == '+' || op == '-')
+                return 1;
+            if (op == '*' || op == '/')
+                return 2;
+            return 0;
+        }
+
+        double ApplyOp(double a, double b, char op)
+        {
+            switch (op) {
+            case '+': return a + b;
+            case '-': return a - b;
+            case '*': return a * b;
+            case '/': return a / b;
+            }
+            return 0;
+        }
+
+    private:
+        System::Void btnMainForm_Click(System::Object^ sender, System::EventArgs^ e)
+        {
+            this->Close();
+        }
+
+        System::Void NumberButton_Click(System::Object^ sender, System::EventArgs^ e)
+        {
+            Button^ button = safe_cast<Button^>(sender);
+            expressionBox->Text += button->Text;
+        }
+
+        System::Void OperatorButton_Click(System::Object^ sender, System::EventArgs^ e)
+        {
+            Button^ button = safe_cast<Button^>(sender);
+            expressionBox->Text += " " + button->Text + " ";
+        }
+
+        System::Void btnOpenParen_Click(System::Object^ sender, System::EventArgs^ e)
+        {
+            expressionBox->Text += "(";
+        }
+
+        System::Void btnCloseParen_Click(System::Object^ sender, System::EventArgs^ e)
+        {
+            expressionBox->Text += ")";
+        }
+
+        System::Void btnBack_Click(System::Object^ sender, System::EventArgs^ e)
+        {
+            if (expressionBox->Text->Length > 0)
+            {
+                expressionBox->Text = expressionBox->Text->Substring(0, expressionBox->Text->Length - 1);
+            }
+        }
+
+        System::Void btnClear_Click(System::Object^ sender, System::EventArgs^ e)
+        {
+            expressionBox->Clear();
+        }
+
+        System::Void btnEquals_Click(System::Object^ sender, System::EventArgs^ e)
+        {
+            try
+            {
+                double result = EvaluateExpression(expressionBox->Text);
+                expressionBox->Text = result.ToString();
+            }
+            catch (Exception^ ex)
+            {
+                expressionBox->Text = "Error";
+            }
+        }
+
+        System::Void btnTrig_Click(System::Object^ sender, System::EventArgs^ e)
+        {
+            trigMenu->Visible = !trigMenu->Visible;
+        }
+
+        System::Void btnSin_Click(System::Object^ sender, System::EventArgs^ e)
+        {
+            expressionBox->Text += "sin(";
+        }
+
+        System::Void btnCos_Click(System::Object^ sender, System::EventArgs^ e)
+        {
+            expressionBox->Text += "cos(";
+        }
+
+        System::Void btnTan_Click(System::Object^ sender, System::EventArgs^ e)
+        {
+            expressionBox->Text += "tan(";
+        }
+
+        System::Void btnCot_Click(System::Object^ sender, System::EventArgs^ e)
+        {
+            expressionBox->Text += "cot(";
+        }
+
+        System::Void btnSqrt_Click(System::Object^ sender, System::EventArgs^ e)
+        {
+            expressionBox->Text += "sqrt(";
+        }
+
+        System::Void btnPower_Click(System::Object^ sender, System::EventArgs^ e)
+        {
+            expressionBox->Text += "^";
+        }
+
+        System::Void btnDot_Click(System::Object^ sender, System::EventArgs^ e)
+        {
+            expressionBox->Text += ".";
+        }
+
+        System::Void btnSign_Click(System::Object^ sender, System::EventArgs^ e)
+        {
+            if (expressionBox->Text->Length > 0 && expressionBox->Text[expressionBox->Text->Length - 1] != ' ')
+            {
+                expressionBox->Text += " -";
+            }
+            else
+            {
+                expressionBox->Text += "-";
+            }
+        }
+    };
 }
