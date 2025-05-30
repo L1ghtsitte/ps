@@ -2,10 +2,10 @@
 #pragma once
 
 #include <Windows.h>
-#include <string>
 #include <stack>
 #include <cmath>
 #include <algorithm>
+#include <string>
 
 namespace crl2stud {
 
@@ -470,110 +470,119 @@ namespace crl2stud {
             // Trig menu is already initialized in InitializeComponent
         }
 
-        // Helper function to evaluate expressions
         double EvaluateExpression(System::String^ expression)
         {
-            // Convert System::String to std::string
-            std::string expr = msclr::interop::marshal_as<std::string>(expression);
+            try
+            {
+                // Convert System::String to std::string
+                std::string expr = msclr::interop::marshal_as<std::string>(expression);
 
-            // Remove all whitespace
-            expr.erase(std::remove_if(expr.begin(), expr.end(), ::isspace), expr.end());
+                // Remove all whitespace
+                expr.erase(std::remove_if(expr.begin(), expr.end(), ::isspace), expr.end());
 
-            std::stack<double> values;
-            std::stack<char> ops;
+                std::stack<double> values;
+                std::stack<char> ops;
 
-            for (size_t i = 0; i < expr.length(); i++) {
-                if (expr[i] == ' ')
-                    continue;
+                for (size_t i = 0; i < expr.length(); i++) {
+                    if (expr[i] == ' ')
+                        continue;
 
-                if (expr[i] == '(') {
-                    ops.push(expr[i]);
-                }
-                else if (isdigit(expr[i]) {
-                    double val = 0;
-                    bool decimal = false;
-                    double decimalPlace = 0.1;
-                    bool negative = false;
-
-                    if (i > 0 && expr[i - 1] == '-') {
-                        negative = true;
-                        if (!ops.empty() && ops.top() == '-') {
-                            ops.pop();
-                        }
+                    if (expr[i] == '(') {
+                        ops.push(expr[i]);
                     }
+                    else if (isdigit(expr[i]) || expr[i] == '.') {
+                        double val = 0;
+                        bool decimal = false;
+                        double decimalPlace = 0.1;
+                        bool negative = false;
 
-                    while (i < expr.length() && (isdigit(expr[i]) || expr[i] == '.')) {
-                        if (expr[i] == '.') {
-                            decimal = true;
+                        // Check for negative numbers
+                        if (i > 0 && expr[i - 1] == '-') {
+                            if (i == 1 || expr[i - 2] == '(' || 
+                                expr[i - 2] == '+' || expr[i - 2] == '-' || 
+                                expr[i - 2] == '*' || expr[i - 2] == '/') {
+                                negative = true;
+                                ops.pop(); // Remove the '-' from ops stack
+                            }
                         }
-                        else {
-                            if (!decimal) {
-                                val = val * 10 + (expr[i] - '0');
+
+                        while (i < expr.length() && (isdigit(expr[i]) || expr[i] == '.')) {
+                            if (expr[i] == '.') {
+                                decimal = true;
                             }
                             else {
-                                val = val + (expr[i] - '0') * decimalPlace;
-                                decimalPlace /= 10;
+                                if (!decimal) {
+                                    val = val * 10 + (expr[i] - '0');
+                                }
+                                else {
+                                    val = val + (expr[i] - '0') * decimalPlace;
+                                    decimalPlace /= 10;
+                                }
                             }
+                            i++;
                         }
-                        i++;
-                    }
 
-                    if (negative) {
-                        val = -val;
-                    }
+                        if (negative) {
+                            val = -val;
+                        }
 
-                    values.push(val);
-                    i--;
+                        values.push(val);
+                        i--;
+                    }
+                    else if (expr[i] == ')') {
+                        while (!ops.empty() && ops.top() != '(') {
+                            double val2 = values.top();
+                            values.pop();
+
+                            double val1 = values.top();
+                            values.pop();
+
+                            char op = ops.top();
+                            ops.pop();
+
+                            values.push(ApplyOp(val1, val2, op));
+                        }
+
+                        if (!ops.empty())
+                            ops.pop(); // Remove '(' from stack
+                    }
+                    else {
+                        while (!ops.empty() && Precedence(ops.top()) >= Precedence(expr[i])) {
+                            double val2 = values.top();
+                            values.pop();
+
+                            double val1 = values.top();
+                            values.pop();
+
+                            char op = ops.top();
+                            ops.pop();
+
+                            values.push(ApplyOp(val1, val2, op));
+                        }
+
+                        ops.push(expr[i]);
+                    }
                 }
-                else if (expr[i] == ')') {
-                    while (!ops.empty() && ops.top() != '(') {
-                        double val2 = values.top();
-                        values.pop();
 
-                        double val1 = values.top();
-                        values.pop();
+                while (!ops.empty()) {
+                    double val2 = values.top();
+                    values.pop();
 
-                        char op = ops.top();
-                        ops.pop();
+                    double val1 = values.top();
+                    values.pop();
 
-                        values.push(ApplyOp(val1, val2, op));
-                    }
+                    char op = ops.top();
+                    ops.pop();
 
-                    if (!ops.empty())
-                        ops.pop();
+                    values.push(ApplyOp(val1, val2, op));
                 }
-                else {
-                    while (!ops.empty() && Precedence(ops.top()) >= Precedence(expr[i])) {
-                        double val2 = values.top();
-                        values.pop();
 
-                        double val1 = values.top();
-                        values.pop();
-
-                        char op = ops.top();
-                        ops.pop();
-
-                        values.push(ApplyOp(val1, val2, op));
-                    }
-
-                    ops.push(expr[i]);
-                }
+                return values.empty() ? 0 : values.top();
             }
-
-            while (!ops.empty()) {
-                double val2 = values.top();
-                values.pop();
-
-                double val1 = values.top();
-                values.pop();
-
-                char op = ops.top();
-                ops.pop();
-
-                values.push(ApplyOp(val1, val2, op));
+            catch (...)
+            {
+                throw gcnew System::Exception("Error evaluating expression");
             }
-
-            return values.top();
         }
 
         int Precedence(char op)
@@ -591,7 +600,9 @@ namespace crl2stud {
             case '+': return a + b;
             case '-': return a - b;
             case '*': return a * b;
-            case '/': return a / b;
+            case '/': 
+                if (b == 0) throw gcnew System::DivideByZeroException();
+                return a / b;
             }
             return 0;
         }
@@ -611,7 +622,7 @@ namespace crl2stud {
         System::Void OperatorButton_Click(System::Object^ sender, System::EventArgs^ e)
         {
             Button^ button = safe_cast<Button^>(sender);
-            expressionBox->Text += " " + button->Text + " ";
+            expressionBox->Text += button->Text;
         }
 
         System::Void btnOpenParen_Click(System::Object^ sender, System::EventArgs^ e)
@@ -646,7 +657,7 @@ namespace crl2stud {
             }
             catch (Exception^ ex)
             {
-                expressionBox->Text = "Error";
+                expressionBox->Text = "Error: " + ex->Message;
             }
         }
 
@@ -692,14 +703,7 @@ namespace crl2stud {
 
         System::Void btnSign_Click(System::Object^ sender, System::EventArgs^ e)
         {
-            if (expressionBox->Text->Length > 0 && expressionBox->Text[expressionBox->Text->Length - 1] != ' ')
-            {
-                expressionBox->Text += " -";
-            }
-            else
-            {
-                expressionBox->Text += "-";
-            }
+            expressionBox->Text += "-";
         }
     };
 }
