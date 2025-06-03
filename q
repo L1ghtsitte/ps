@@ -1,605 +1,557 @@
-import os
-import json
-import random
-import math
-from datetime import datetime, date, timedelta
-from PIL import Image, ImageDraw, ImageFont, ImageOps
-from io import BytesIO
-import telebot
-from telebot import types
-import threading
-import time
+#pragma once
 
-# Настройки бота
-TOKEN = 'ВАШ_ТЕЛЕГРАМ_ТОКЕН'
-bot = telebot.TeleBot(TOKEN)
+#include <vector>
+#include <map>
+#include <string>
+#include <fstream>
+#include "nlohmann/json.hpp"
+#include "GraphElement.h"
+#include "GraphNode.h"
+#include "GraphEdge.h"
+#include "IMaltegoModule.h"
 
-# Конфигурация
-USERS_FILE = 'users.json'
-IMAGE_SIZE = (1980, 1080)
-AVATAR_SIZE = 400  # Размер круглой аватарки
-BASE_FONT_RATIO = 0.15  # 15% от высоты изображения
+using json = nlohmann::json;
 
-# Настройки доната
-STAR_PRICE = 70  # 70 звезд = 1 USD (актуальный курс Telegram Stars)
-DONATE_OPTIONS = {
-    1: {"stars": 70, "bonus": 0, "label": "🌟 70 звезд (1$)"},
-    2: {"stars": 350, "bonus": 70, "label": "🌟🌟 350 звезд (5$ + бонус!)"},
-    3: {"stars": 700, "bonus": 210, "label": "🌟🌟🌟 700 звезд (10$ + мега бонус!!)"}
-}
+namespace MaltegoClone {
 
-# Типы градиентов
-GRADIENT_TYPES = {
-    "vertical": "Вертикальный",
-    "horizontal": "Горизонтальный",
-    "radial": "Круговой",
-    "diagonal": "Диагональный"
-}
+    using namespace System;
+    using namespace System::ComponentModel;
+    using namespace System::Collections;
+    using namespace System::Windows::Forms;
+    using namespace System::Data;
+    using namespace System::Drawing;
+    using namespace System::IO;
 
-# Загрузка данных пользователей
-def load_users():
-    if not os.path.exists(USERS_FILE):
-        return {}
-    try:
-        with open(USERS_FILE, 'r', encoding='utf-8') as f:
-            return json.load(f)
-    except:
-        return {}
-
-def save_users(users):
-    with open(USERS_FILE, 'w', encoding='utf-8') as f:
-        json.dump(users, f, ensure_ascii=False, indent=4)
-
-users = load_users()
-
-# Генерация разных типов градиентов
-def generate_gradient_background(size, num_colors=3):
-    """Генерирует случайный тип градиента"""
-    gradient_type = random.choice(list(GRADIENT_TYPES.keys()))
-    colors = [(random.randint(0, 150), random.randint(0, 150), random.randint(0, 150)) for _ in range(num_colors)]
-    
-    img = Image.new('RGB', size)
-    draw = ImageDraw.Draw(img)
-    width, height = size
-    
-    if gradient_type == "vertical":
-        for i in range(height):
-            pos = i / height
-            color = get_gradient_color(colors, pos)
-            draw.line([(0, i), (width, i)], fill=color)
-    
-    elif gradient_type == "horizontal":
-        for i in range(width):
-            pos = i / width
-            color = get_gradient_color(colors, pos)
-            draw.line([(i, 0), (i, height)], fill=color)
-    
-    elif gradient_type == "radial":
-        center_x, center_y = width // 2, height // 2
-        max_radius = int(math.sqrt(center_x**2 + center_y**2))
-        
-        for radius in range(max_radius, 0, -1):
-            pos = 1 - radius / max_radius
-            color = get_gradient_color(colors, pos)
-            draw.ellipse([
-                (center_x - radius, center_y - radius),
-                (center_x + radius, center_y + radius)
-            ], fill=color)
-    
-    elif gradient_type == "diagonal":
-        max_diag = int(math.sqrt(width**2 + height**2))
-        for i in range(max_diag):
-            pos = i / max_diag
-            color = get_gradient_color(colors, pos)
-            draw.line(diagonal_coords(i, width, height), fill=color, width=2)
-    
-    return img, colors, GRADIENT_TYPES[gradient_type]
-
-def get_gradient_color(colors, pos):
-    """Возвращает цвет из градиента по позиции"""
-    color_idx = pos * (len(colors) - 1)
-    idx1 = int(math.floor(color_idx))
-    idx2 = min(idx1 + 1, len(colors) - 1)
-    factor = color_idx - idx1
-    
-    r = int(colors[idx1][0] + (colors[idx2][0] - colors[idx1][0]) * factor)
-    g = int(colors[idx1][1] + (colors[idx2][1] - colors[idx1][1]) * factor)
-    b = int(colors[idx1][2] + (colors[idx2][2] - colors[idx1][2]) * factor)
-    
-    return (r, g, b)
-
-def diagonal_coords(i, width, height):
-    """Координаты для диагонального градиента"""
-    if i < height:
-        return (0, height - i), (i, height)
-    else:
-        return (i - height, 0), (width, i - height + (height - (i - height)))
-
-# Создание круглой аватарки
-def make_circular_avatar(image_path):
-    img = Image.open(image_path).resize((AVATAR_SIZE, AVATAR_SIZE))
-    mask = Image.new('L', (AVATAR_SIZE, AVATAR_SIZE), 0)
-    ImageDraw.Draw(mask).ellipse((0, 0, AVATAR_SIZE, AVATAR_SIZE), fill=255)
-    output = ImageOps.fit(img, mask.size, centering=(0.5, 0.5))
-    output.putalpha(mask)
-    return output
-
-# Генерация изображения профиля
-def generate_profile_image(user):
-    # Создаем градиентный фон
-    img, colors, gradient_type = generate_gradient_background(IMAGE_SIZE)
-    draw = ImageDraw.Draw(img)
-    
-    # Настраиваем шрифты (15% от высоты изображения)
-    base_font_size = int(IMAGE_SIZE[1] * BASE_FONT_RATIO)
-    try:
-        font_large = ImageFont.truetype("arial.ttf", int(base_font_size * 0.7))
-        font_medium = ImageFont.truetype("arial.ttf", int(base_font_size * 0.5))
-        font_small = ImageFont.truetype("arial.ttf", int(base_font_size * 0.3))
-    except:
-        font_large = ImageFont.load_default(size=int(base_font_size * 0.7))
-        font_medium = ImageFont.load_default(size=int(base_font_size * 0.5))
-        font_small = ImageFont.load_default(size=int(base_font_size * 0.3))
-
-    # Добавляем аватар (по центру сверху)
-    if user['avatar'] and os.path.exists(user['avatar']):
-        avatar = make_circular_avatar(user['avatar'])
-        img.paste(avatar, ((IMAGE_SIZE[0] - AVATAR_SIZE) // 2, int(IMAGE_SIZE[1] * 0.05)), avatar)
-
-    # Функция для центрирования текста
-    def draw_centered_text(y, text, font, fill=(255, 255, 255)):
-        bbox = draw.textbbox((0, 0), text, font=font)
-        w, h = bbox[2] - bbox[0], bbox[3] - bbox[1]
-        draw.text(((IMAGE_SIZE[0] - w) // 2, y), text, font=font, fill=fill)
-        return y + h
-
-    # Рисуем текст
-    y_pos = int(IMAGE_SIZE[1] * 0.05) + AVATAR_SIZE + int(IMAGE_SIZE[1] * 0.05)
-    
-    username = f"@{user['username']}" if user['username'] else "Без юзернейма"
-    y_pos = draw_centered_text(y_pos, username, font_large) + int(IMAGE_SIZE[1] * 0.03)
-    y_pos = draw_centered_text(y_pos, user['fio'], font_medium) + int(IMAGE_SIZE[1] * 0.02)
-    
-    # Возраст и количество прожитых дней
-    birthday = datetime.strptime(user['birthday'], "%d.%m.%Y").date()
-    today = date.today()
-    lived_days = (today - birthday).days
-    age_text = f"Возраст: {user['age']} лет | {lived_days} дней"
-    y_pos = draw_centered_text(y_pos, age_text, font_medium) + int(IMAGE_SIZE[1] * 0.02)
-    
-    # Дни до дня рождения
-    days_left = days_until_birthday(birthday)
-    days_text = "🎉 С ДНЕМ РОЖДЕНИЯ! 🎉" if days_left == 0 else f"До дня рождения: {days_left} дней"
-    y_pos = draw_centered_text(y_pos, days_text, font_medium)
-    
-    # Добавляем информацию о градиенте
-    gradient_info = f"Тип градиента: {gradient_type}"
-    y_pos = draw_centered_text(y_pos, gradient_info, font_small) + int(IMAGE_SIZE[1] * 0.01)
-    
-    # Добавляем палитру цветов
-    palette = " | ".join([f"#{r:02x}{g:02x}{b:02x}" for r, g, b in colors])
-    draw_centered_text(IMAGE_SIZE[1] - int(base_font_size * 0.4), f"Цвета фона: {palette}", font_small)
-    
-    return img
-
-# Вспомогательные функции
-def calculate_age(birthday):
-    today = date.today()
-    return today.year - birthday.year - ((today.month, today.day) < (birthday.month, birthday.day))
-
-def days_until_birthday(birthday):
-    today = date.today()
-    next_bday = date(today.year, birthday.month, birthday.day)
-    if next_bday < today:
-        next_bday = date(today.year + 1, birthday.month, birthday.day)
-    return (next_bday - today).days
-
-# Генерация и отправка профиля
-def generate_and_send_profile(chat_id, user_id):
-    if user_id not in users:
-        return
-    
-    user = users[user_id]
-    try:
-        img = generate_profile_image(user)
-        with BytesIO() as output:
-            img.save(output, format="JPEG")
-            output.seek(0)
-            bot.send_photo(chat_id, output)
-    except Exception as e:
-        bot.send_message(chat_id, f"Ошибка генерации профиля: {e}")
-
-# Команды бота
-@bot.message_handler(commands=['start'])
-def start(message):
-    user_id = str(message.from_user.id)
-    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    
-    if user_id in users:
-        buttons = ["Мой профиль", "Редактировать профиль", "Настройки уведомлений", "Удалить профиль", "Поддержать"]
-        markup.add(*buttons)
-        bot.send_message(message.chat.id, "С возвращением! Что вы хотите сделать?", reply_markup=markup)
-    else:
-        markup.add("Регистрация")
-        bot.send_message(message.chat.id, "Привет! Я бот для учета дней до дня рождения.", reply_markup=markup)
-
-# Регистрация
-@bot.message_handler(func=lambda message: message.text == "Регистрация")
-def registration_start(message):
-    user_id = str(message.from_user.id)
-    if user_id in users:
-        bot.send_message(message.chat.id, "Вы уже зарегистрированы!")
-        return
-    
-    msg = bot.send_message(message.chat.id, "Введите ваше ФИО:")
-    bot.register_next_step_handler(msg, process_fio_step)
-
-def process_fio_step(message):
-    user_id = str(message.from_user.id)
-    users[user_id] = {
-        'username': message.from_user.username or "",
-        'fio': message.text,
-        'avatar': None,
-        'birthday': None,
-        'notifications': False,
-        'agreed': False,
-        'donated': 0
-    }
-    
-    msg = bot.send_message(message.chat.id, "Введите вашу дату рождения в формате ДД.ММ.ГГГГ (например, 01.01.2000):")
-    bot.register_next_step_handler(msg, process_birthday_step)
-
-def process_birthday_step(message):
-    user_id = str(message.from_user.id)
-    try:
-        birthday = datetime.strptime(message.text, "%d.%m.%Y").date()
-        users[user_id]['birthday'] = message.text
-        users[user_id]['age'] = calculate_age(birthday)
-        
-        markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-        btn1 = types.KeyboardButton("Да")
-        btn2 = types.KeyboardButton("Нет")
-        markup.add(btn1, btn2)
-        
-        msg = bot.send_message(message.chat.id, "Хотите получать ежедневные уведомления о днях до дня рождения?", reply_markup=markup)
-        bot.register_next_step_handler(msg, process_notification_step)
-    except ValueError:
-        msg = bot.send_message(message.chat.id, "Неправильный формат даты. Попробуйте еще раз в формате ДД.ММ.ГГГГ:")
-        bot.register_next_step_handler(msg, process_birthday_step)
-
-def process_notification_step(message):
-    user_id = str(message.from_user.id)
-    users[user_id]['notifications'] = message.text.lower() == 'да'
-    
-    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    btn1 = types.KeyboardButton("Согласен")
-    btn2 = types.KeyboardButton("Не согласен")
-    markup.add(btn1, btn2)
-    
-    msg = bot.send_message(message.chat.id, "Согласны ли вы на обработку персональных данных?", reply_markup=markup)
-    bot.register_next_step_handler(msg, process_agreement_step)
-
-def process_agreement_step(message):
-    user_id = str(message.from_user.id)
-    users[user_id]['agreed'] = message.text.lower() == 'согласен'
-    
-    msg = bot.send_message(message.chat.id, "Отправьте вашу аватарку (фото):", reply_markup=types.ReplyKeyboardRemove())
-    bot.register_next_step_handler(msg, process_avatar_step)
-
-def process_avatar_step(message):
-    user_id = str(message.from_user.id)
-    try:
-        if message.content_type == 'photo':
-            file_id = message.photo[-1].file_id
-            file_info = bot.get_file(file_id)
-            downloaded_file = bot.download_file(file_info.file_path)
+    public ref class MainForm : public Form
+    {
+    public:
+        MainForm(void)
+        {
+            InitializeComponent();
+            InitializeToolbox();
+            this->DoubleBuffered = true;
+            graphElements = gcnew List<GraphElement^>();
+            edges = gcnew List<GraphEdge^>();
+            selectedElement = nullptr;
+            isDragging = false;
+            isDrawingEdge = false;
+            tempEdge = nullptr;
+            nodeIdCounter = 1;
             
-            os.makedirs("avatars", exist_ok=True)
-            avatar_path = f"avatars/{user_id}.jpg"
-            with open(avatar_path, 'wb') as new_file:
-                new_file.write(downloaded_file)
+            // Set up drag and drop
+            this->toolbox->ItemDrag += gcnew ItemDragEventHandler(this, &MainForm::toolbox_ItemDrag);
+            this->graphPanel->DragEnter += gcnew DragEventHandler(this, &MainForm::graphPanel_DragEnter);
+            this->graphPanel->DragDrop += gcnew DragEventHandler(this, &MainForm::graphPanel_DragDrop);
+            this->graphPanel->MouseDown += gcnew MouseEventHandler(this, &MainForm::graphPanel_MouseDown);
+            this->graphPanel->MouseMove += gcnew MouseEventHandler(this, &MainForm::graphPanel_MouseMove);
+            this->graphPanel->MouseUp += gcnew MouseEventHandler(this, &MainForm::graphPanel_MouseUp);
+            this->graphPanel->Paint += gcnew PaintEventHandler(this, &MainForm::graphPanel_Paint);
             
-            users[user_id]['avatar'] = avatar_path
-            save_users(users)
+            // Load modules
+            LoadModules();
+        }
+
+    protected:
+        ~MainForm()
+        {
+            if (components)
+            {
+                delete components;
+            }
+        }
+
+    private:
+        System::ComponentModel::Container ^components;
+        System::Windows::Forms::Panel^ graphPanel;
+        System::Windows::Forms::MenuStrip^ menuStrip;
+        System::Windows::Forms::ToolStripMenuItem^ fileToolStripMenuItem;
+        System::Windows::Forms::ToolStripMenuItem^ saveToolStripMenuItem;
+        System::Windows::Forms::ToolStripMenuItem^ loadToolStripMenuItem;
+        System::Windows::Forms::ToolStripMenuItem^ modulesToolStripMenuItem;
+        System::Windows::Forms::StatusStrip^ statusStrip;
+        System::Windows::Forms::ToolStripStatusLabel^ statusLabel;
+        System::Windows::Forms::ListBox^ toolbox;
+        System::Windows::Forms::Button^ addCustomElementButton;
+        System::Windows::Forms::TextBox^ customElementName;
+        System::Windows::Forms::Button^ edgeModeButton;
+
+        List<GraphElement^>^ graphElements;
+        List<GraphEdge^>^ edges;
+        GraphElement^ selectedElement;
+        bool isDragging;
+        Point dragOffset;
+        bool isDrawingEdge;
+        GraphEdge^ tempEdge;
+        int nodeIdCounter;
+        List<IMaltegoModule^>^ modules;
+
+        void InitializeComponent(void)
+        {
+            this->graphPanel = gcnew System::Windows::Forms::Panel();
+            this->menuStrip = gcnew System::Windows::Forms::MenuStrip();
+            this->fileToolStripMenuItem = gcnew System::Windows::Forms::ToolStripMenuItem();
+            this->saveToolStripMenuItem = gcnew System::Windows::Forms::ToolStripMenuItem();
+            this->loadToolStripMenuItem = gcnew System::Windows::Forms::ToolStripMenuItem();
+            this->modulesToolStripMenuItem = gcnew System::Windows::Forms::ToolStripMenuItem();
+            this->statusStrip = gcnew System::Windows::Forms::StatusStrip();
+            this->statusLabel = gcnew System::Windows::Forms::ToolStripStatusLabel();
+            this->toolbox = gcnew System::Windows::Forms::ListBox();
+            this->addCustomElementButton = gcnew System::Windows::Forms::Button();
+            this->customElementName = gcnew System::Windows::Forms::TextBox();
+            this->edgeModeButton = gcnew System::Windows::Forms::Button();
+            this->menuStrip->SuspendLayout();
+            this->SuspendLayout();
             
-            markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-            btn1 = types.KeyboardButton("Мой профиль")
-            btn2 = types.KeyboardButton("Редактировать профиль")
-            markup.add(btn1, btn2)
+            // graphPanel
+            this->graphPanel->BackColor = System::Drawing::SystemColors::Window;
+            this->graphPanel->Location = System::Drawing::Point(150, 27);
+            this->graphPanel->Name = L"graphPanel";
+            this->graphPanel->Size = System::Drawing::Size(650, 423);
+            this->graphPanel->TabIndex = 0;
+            this->graphPanel->AllowDrop = true;
             
-            bot.send_message(message.chat.id, "Регистрация завершена!", reply_markup=markup)
-            generate_and_send_profile(message.chat.id, user_id)
-        else:
-            msg = bot.send_message(message.chat.id, "Пожалуйста, отправьте фото.")
-            bot.register_next_step_handler(msg, process_avatar_step)
-    except Exception as e:
-        bot.send_message(message.chat.id, f"Произошла ошибка: {e}")
-
-# Просмотр профиля
-@bot.message_handler(commands=['profile'])
-@bot.message_handler(func=lambda message: message.text == "Мой профиль")
-def show_profile(message):
-    user_id = str(message.from_user.id)
-    if user_id not in users:
-        bot.send_message(message.chat.id, "Вы не зарегистрированы. Нажмите 'Регистрация'.")
-        return
-    
-    generate_and_send_profile(message.chat.id, user_id)
-
-# Редактирование профиля
-@bot.message_handler(commands=['edit'])
-@bot.message_handler(func=lambda message: message.text == "Редактировать профиль")
-def edit_profile(message):
-    user_id = str(message.from_user.id)
-    if user_id not in users:
-        bot.send_message(message.chat.id, "Вы не зарегистрированы.")
-        return
-    
-    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    btn1 = types.KeyboardButton("Изменить ФИО")
-    btn2 = types.KeyboardButton("Изменить дату рождения")
-    btn3 = types.KeyboardButton("Изменить аватар")
-    btn4 = types.KeyboardButton("Назад")
-    markup.add(btn1, btn2, btn3, btn4)
-    
-    bot.send_message(message.chat.id, "Что вы хотите изменить?", reply_markup=markup)
-
-@bot.message_handler(func=lambda message: message.text == "Изменить ФИО")
-def change_fio(message):
-    msg = bot.send_message(message.chat.id, "Введите новое ФИО:", reply_markup=types.ReplyKeyboardRemove())
-    bot.register_next_step_handler(msg, process_new_fio)
-
-def process_new_fio(message):
-    user_id = str(message.from_user.id)
-    users[user_id]['fio'] = message.text
-    save_users(users)
-    bot.send_message(message.chat.id, "ФИО успешно изменено!")
-    generate_and_send_profile(message.chat.id, user_id)
-
-@bot.message_handler(func=lambda message: message.text == "Изменить дату рождения")
-def change_birthday(message):
-    msg = bot.send_message(message.chat.id, "Введите новую дату рождения в формате ДД.ММ.ГГГГ:", reply_markup=types.ReplyKeyboardRemove())
-    bot.register_next_step_handler(msg, process_new_birthday)
-
-def process_new_birthday(message):
-    user_id = str(message.from_user.id)
-    try:
-        birthday = datetime.strptime(message.text, "%d.%m.%Y").date()
-        users[user_id]['birthday'] = message.text
-        users[user_id]['age'] = calculate_age(birthday)
-        save_users(users)
-        bot.send_message(message.chat.id, "Дата рождения успешно изменена!")
-        generate_and_send_profile(message.chat.id, user_id)
-    except ValueError:
-        bot.send_message(message.chat.id, "Неправильный формат даты. Используйте ДД.ММ.ГГГГ")
-
-@bot.message_handler(func=lambda message: message.text == "Изменить аватар")
-def change_avatar(message):
-    msg = bot.send_message(message.chat.id, "Отправьте новую аватарку:", reply_markup=types.ReplyKeyboardRemove())
-    bot.register_next_step_handler(msg, process_new_avatar)
-
-def process_new_avatar(message):
-    user_id = str(message.from_user.id)
-    try:
-        if message.content_type == 'photo':
-            file_id = message.photo[-1].file_id
-            file_info = bot.get_file(file_id)
-            downloaded_file = bot.download_file(file_info.file_path)
+            // menuStrip
+            this->menuStrip->Items->AddRange(gcnew cli::array< System::Windows::Forms::ToolStripItem^  >(2) {
+                this->fileToolStripMenuItem,
+                this->modulesToolStripMenuItem
+            });
+            this->menuStrip->Location = System::Drawing::Point(0, 0);
+            this->menuStrip->Name = L"menuStrip";
+            this->menuStrip->Size = System::Drawing::Size(800, 24);
+            this->menuStrip->TabIndex = 1;
+            this->menuStrip->Text = L"menuStrip1";
             
-            avatar_path = f"avatars/{user_id}.jpg"
-            with open(avatar_path, 'wb') as new_file:
-                new_file.write(downloaded_file)
+            // fileToolStripMenuItem
+            this->fileToolStripMenuItem->DropDownItems->AddRange(gcnew cli::array< System::Windows::Forms::ToolStripItem^  >(2) {
+                this->saveToolStripMenuItem,
+                this->loadToolStripMenuItem
+            });
+            this->fileToolStripMenuItem->Name = L"fileToolStripMenuItem";
+            this->fileToolStripMenuItem->Size = System::Drawing::Size(37, 20);
+            this->fileToolStripMenuItem->Text = L"File";
             
-            users[user_id]['avatar'] = avatar_path
-            save_users(users)
-            bot.send_message(message.chat.id, "Аватар успешно изменен!")
-            generate_and_send_profile(message.chat.id, user_id)
-        else:
-            bot.send_message(message.chat.id, "Пожалуйста, отправьте фото.")
-    except Exception as e:
-        bot.send_message(message.chat.id, f"Ошибка: {e}")
+            // saveToolStripMenuItem
+            this->saveToolStripMenuItem->Name = L"saveToolStripMenuItem";
+            this->saveToolStripMenuItem->Size = System::Drawing::Size(180, 22);
+            this->saveToolStripMenuItem->Text = L"Save Graph";
+            this->saveToolStripMenuItem->Click += gcnew System::EventHandler(this, &MainForm::saveToolStripMenuItem_Click);
+            
+            // loadToolStripMenuItem
+            this->loadToolStripMenuItem->Name = L"loadToolStripMenuItem";
+            this->loadToolStripMenuItem->Size = System::Drawing::Size(180, 22);
+            this->loadToolStripMenuItem->Text = L"Load Graph";
+            this->loadToolStripMenuItem->Click += gcnew System::EventHandler(this, &MainForm::loadToolStripMenuItem_Click);
+            
+            // modulesToolStripMenuItem
+            this->modulesToolStripMenuItem->Name = L"modulesToolStripMenuItem";
+            this->modulesToolStripMenuItem->Size = System::Drawing::Size(65, 20);
+            this->modulesToolStripMenuItem->Text = L"Modules";
+            
+            // statusStrip
+            this->statusStrip->Items->AddRange(gcnew cli::array< System::Windows::Forms::ToolStripItem^  >(1) {this->statusLabel});
+            this->statusStrip->Location = System::Drawing::Point(0, 450);
+            this->statusStrip->Name = L"statusStrip";
+            this->statusStrip->Size = System::Drawing::Size(800, 22);
+            this->statusStrip->TabIndex = 2;
+            this->statusStrip->Text = L"statusStrip1";
+            
+            // statusLabel
+            this->statusLabel->Name = L"statusLabel";
+            this->statusLabel->Size = System::Drawing::Size(39, 17);
+            this->statusLabel->Text = L"Ready";
+            
+            // toolbox
+            this->toolbox->FormattingEnabled = true;
+            this->toolbox->Location = System::Drawing::Point(0, 27);
+            this->toolbox->Name = L"toolbox";
+            this->toolbox->Size = System::Drawing::Size(150, 355);
+            this->toolbox->TabIndex = 3;
+            this->toolbox->AllowDrop = true;
+            
+            // addCustomElementButton
+            this->addCustomElementButton->Location = System::Drawing::Point(0, 388);
+            this->addCustomElementButton->Name = L"addCustomElementButton";
+            this->addCustomElementButton->Size = System::Drawing::Size(150, 23);
+            this->addCustomElementButton->TabIndex = 4;
+            this->addCustomElementButton->Text = L"Add Custom Element";
+            this->addCustomElementButton->Click += gcnew System::EventHandler(this, &MainForm::addCustomElementButton_Click);
+            
+            // customElementName
+            this->customElementName->Location = System::Drawing::Point(0, 415);
+            this->customElementName->Name = L"customElementName";
+            this->customElementName->Size = System::Drawing::Size(150, 20);
+            this->customElementName->TabIndex = 5;
+            
+            // edgeModeButton
+            this->edgeModeButton->Location = System::Drawing::Point(0, 440);
+            this->edgeModeButton->Name = L"edgeModeButton";
+            this->edgeModeButton->Size = System::Drawing::Size(150, 23);
+            this->edgeModeButton->TabIndex = 6;
+            this->edgeModeButton->Text = L"Edge Mode (Off)";
+            this->edgeModeButton->Click += gcnew System::EventHandler(this, &MainForm::edgeModeButton_Click);
+            
+            // MainForm
+            this->AutoScaleDimensions = System::Drawing::SizeF(6, 13);
+            this->AutoScaleMode = System::Windows::Forms::AutoScaleMode::Font;
+            this->ClientSize = System::Drawing::Size(800, 472);
+            this->Controls->Add(this->edgeModeButton);
+            this->Controls->Add(this->customElementName);
+            this->Controls->Add(this->addCustomElementButton);
+            this->Controls->Add(this->toolbox);
+            this->Controls->Add(this->statusStrip);
+            this->Controls->Add(this->graphPanel);
+            this->Controls->Add(this->menuStrip);
+            this->MainMenuStrip = this->menuStrip;
+            this->Name = L"MainForm";
+            this->Text = L"Maltego-like Graph Editor";
+            this->menuStrip->ResumeLayout(false);
+            this->menuStrip->PerformLayout();
+            this->ResumeLayout(false);
+            this->PerformLayout();
+        }
 
-# Удаление профиля
-@bot.message_handler(func=lambda message: message.text == "Удалить профиль")
-def delete_profile(message):
-    user_id = str(message.from_user.id)
-    if user_id not in users:
-        bot.send_message(message.chat.id, "У вас нет профиля для удаления.")
-        return
-    
-    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    markup.add("Да, удалить", "Нет, отмена")
-    bot.send_message(message.chat.id, "Вы уверены, что хотите удалить свой профиль? Это действие нельзя отменить!", reply_markup=markup)
-    bot.register_next_step_handler(message, confirm_delete)
+        void InitializeToolbox()
+        {
+            // Add default element types
+            toolbox->Items->Add("Person");
+            toolbox->Items->Add("Organization");
+            toolbox->Items->Add("Website");
+            toolbox->Items->Add("IP Address");
+            toolbox->Items->Add("Email");
+            toolbox->Items->Add("Document");
+        }
 
-def confirm_delete(message):
-    user_id = str(message.from_user.id)
-    if message.text == "Да, удалить":
-        if users[user_id]['avatar'] and os.path.exists(users[user_id]['avatar']):
-            try:
-                os.remove(users[user_id]['avatar'])
-            except:
-                pass
-        
-        del users[user_id]
-        save_users(users)
-        bot.send_message(message.chat.id, "Ваш профиль удален.", reply_markup=types.ReplyKeyboardRemove())
-        start(message)
-    else:
-        start(message)
+        void LoadModules()
+        {
+            modules = gcnew List<IMaltegoModule^>();
+            // In a real implementation, this would load DLLs
+            // For now we'll just add a sample module
+            // modules->Add(gcnew SampleModule());
+            
+            // Add module menu items
+            for each (IMaltegoModule^ module in modules)
+            {
+                ToolStripMenuItem^ item = gcnew ToolStripMenuItem(module->GetModuleName());
+                item->Click += gcnew EventHandler(this, &MainForm::ModuleMenuItem_Click);
+                modulesToolStripMenuItem->DropDownItems->Add(item);
+            }
+            
+            statusLabel->Text = "Loaded " + modules->Count + " modules";
+        }
 
-# Настройки уведомлений
-@bot.message_handler(func=lambda message: message.text == "Настройки уведомлений")
-def notification_settings(message):
-    user_id = str(message.from_user.id)
-    if user_id not in users:
-        bot.send_message(message.chat.id, "Вы не зарегистрированы.")
-        return
-    
-    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    if users[user_id]['notifications']:
-        markup.add("Отключить уведомления", "Назад")
-    else:
-        markup.add("Включить уведомления", "Назад")
-    
-    status = "включены" if users[user_id]['notifications'] else "отключены"
-    bot.send_message(message.chat.id, f"Текущий статус уведомлений: {status}", reply_markup=markup)
+        void ModuleMenuItem_Click(Object^ sender, EventArgs^ e)
+        {
+            ToolStripMenuItem^ item = (ToolStripMenuItem^)sender;
+            String^ moduleName = item->Text;
+            
+            for each (IMaltegoModule^ module in modules)
+            {
+                if (module->GetModuleName() == moduleName)
+                {
+                    module->Execute(this->graphPanel);
+                    break;
+                }
+            }
+        }
 
-@bot.message_handler(func=lambda message: message.text in ["Включить уведомления", "Отключить уведомления"])
-def toggle_notifications(message):
-    user_id = str(message.from_user.id)
-    users[user_id]['notifications'] = not users[user_id]['notifications']
-    save_users(users)
-    
-    status = "включены" if users[user_id]['notifications'] else "отключены"
-    bot.send_message(message.chat.id, f"Уведомления теперь {status}!")
-    start(message)
+        void toolbox_ItemDrag(Object^ sender, ItemDragEventArgs^ e)
+        {
+            if (e->Item != nullptr)
+            {
+                DoDragDrop(e->Item, DragDropEffects::Copy);
+            }
+        }
 
-# Система доната через Telegram Stars
-@bot.message_handler(commands=['donate'])
-@bot.message_handler(func=lambda message: message.text == "Поддержать")
-def send_donate_menu(message):
-    markup = types.InlineKeyboardMarkup()
-    
-    for option_id, option in DONATE_OPTIONS.items():
-        btn_text = f"{option['label']}"
-        if option['bonus'] > 0:
-            btn_text += f" (+{option['bonus']} бонус)"
-        
-        markup.add(
-            types.InlineKeyboardButton(
-                btn_text,
-                callback_data=f"donate_{option_id}"
-            )
-        )
-    
-    bot.send_message(
-        message.chat.id,
-        "🌟 Поддержите развитие бота!\n\n"
-        "Выберите вариант поддержки:",
-        reply_markup=markup
-    )
+        void graphPanel_DragEnter(Object^ sender, DragEventArgs^ e)
+        {
+            if (e->Data->GetDataPresent("System.String"))
+            {
+                e->Effect = DragDropEffects::Copy;
+            }
+        }
 
-@bot.callback_query_handler(func=lambda call: call.data.startswith('donate_'))
-def handle_donate_callback(call):
-    option_id = int(call.data.split('_')[1])
-    option = DONATE_OPTIONS.get(option_id)
-    
-    if not option:
-        bot.answer_callback_query(call.id, "Неверный вариант доната")
-        return
-    
-    user_id = str(call.from_user.id)
-    
-    # Создаем инвойс для оплаты
-    try:
-        # Для реальной интеграции нужно использовать Telegram Bot Payments API
-        # Это демо-реализация, которая показывает принцип работы
-        
-        prices = [types.LabeledPrice(f"Донат {option['stars']} звезд", option['stars'] * 100)]
-        
-        bot.send_invoice(
-            call.message.chat.id,
-            title=f"Донат {option['stars']} звезд",
-            description=f"Поддержка разработчика бота (+{option['bonus']} бонусных звезд)",
-            provider_token="ВАШ_PAYMENT_PROVIDER_TOKEN",  # Нужно получить у @BotFather
-            currency="USD",
-            prices=prices,
-            start_parameter="donation",
-            invoice_payload=f"donate_{user_id}_{option_id}"
-        )
-    except Exception as e:
-        bot.answer_callback_query(call.id, f"Ошибка: {str(e)}")
+        void graphPanel_DragDrop(Object^ sender, DragEventArgs^ e)
+        {
+            if (e->Data->GetDataPresent("System.String"))
+            {
+                String^ elementType = (String^)e->Data->GetData("System.String");
+                Point dropLocation = graphPanel->PointToClient(Point(e->X, e->Y));
+                
+                GraphNode^ newNode = gcnew GraphNode();
+                newNode->Id = nodeIdCounter++;
+                newNode->Type = elementType;
+                newNode->Text = elementType + " " + newNode->Id;
+                newNode->Location = dropLocation;
+                newNode->Size = System::Drawing::Size(100, 40);
+                newNode->Color = GetColorForType(elementType);
+                
+                graphElements->Add(newNode);
+                graphPanel->Invalidate();
+            }
+        }
 
-# Обработка успешного платежа
-@bot.pre_checkout_query_handler(func=lambda query: True)
-def process_pre_checkout(pre_checkout_query):
-    bot.answer_pre_checkout_query(pre_checkout_query.id, ok=True)
+        Color GetColorForType(String^ type)
+        {
+            if (type == "Person") return Color::LightBlue;
+            if (type == "Organization") return Color::LightGreen;
+            if (type == "Website") return Color::LightPink;
+            if (type == "IP Address") return Color::LightSalmon;
+            if (type == "Email") return Color::LightGoldenrodYellow;
+            if (type == "Document") return Color::LightGray;
+            return Color::White;
+        }
 
-@bot.message_handler(content_types=['successful_payment'])
-def process_successful_payment(message):
-    user_id = str(message.from_user.id)
-    payload = message.successful_payment.invoice_payload
-    option_id = int(payload.split('_')[2])
-    option = DONATE_OPTIONS.get(option_id)
-    
-    if user_id in users:
-        users[user_id]['donated'] += option['stars'] + option['bonus']
-        save_users(users)
-    
-    bot.send_message(
-        message.chat.id,
-        f"🎉 Спасибо за поддержку! Вы получили {option['stars'] + option['bonus']} звезд!\n"
-        f"Ваш вклад помогает развивать бота!"
-    )
+        void graphPanel_MouseDown(Object^ sender, MouseEventArgs^ e)
+        {
+            if (isDrawingEdge)
+            {
+                // Start drawing an edge
+                selectedElement = FindElementAtPoint(e->Location);
+                if (selectedElement != nullptr)
+                {
+                    tempEdge = gcnew GraphEdge();
+                    tempEdge->Source = selectedElement;
+                    tempEdge->StartPoint = GetElementConnectionPoint(selectedElement, e->Location);
+                    tempEdge->EndPoint = e->Location;
+                }
+            }
+            else
+            {
+                // Select element for moving
+                selectedElement = FindElementAtPoint(e->Location);
+                if (selectedElement != nullptr)
+                {
+                    isDragging = true;
+                    dragOffset = Point(e->X - selectedElement->Location.X, 
+                                      e->Y - selectedElement->Location.Y);
+                }
+            }
+        }
 
-# Список команд
-@bot.message_handler(commands=['help'])
-def show_help(message):
-    commands = [
-        "/start - Главное меню",
-        "/profile - Ваш профиль",
-        "/edit - Редактировать профиль",
-        "/donate - Поддержать разработчика",
-        "/help - Список команд"
-    ]
-    
-    markup = types.InlineKeyboardMarkup()
-    for cmd in commands:
-        cmd_name = cmd.split(' - ')[0]
-        markup.add(types.InlineKeyboardButton(cmd, callback_data=f"help_{cmd_name}"))
-    
-    bot.send_message(
-        message.chat.id,
-        "📋 Доступные команды:\n\n" + "\n".join(commands),
-        reply_markup=markup
-    )
+        void graphPanel_MouseMove(Object^ sender, MouseEventArgs^ e)
+        {
+            if (isDragging && selectedElement != nullptr)
+            {
+                selectedElement->Location = Point(e->X - dragOffset.X, e->Y - dragOffset.Y);
+                graphPanel->Invalidate();
+            }
+            else if (isDrawingEdge && tempEdge != nullptr)
+            {
+                tempEdge->EndPoint = e->Location;
+                graphPanel->Invalidate();
+            }
+        }
 
-@bot.callback_query_handler(func=lambda call: call.data.startswith('help_'))
-def handle_help_callback(call):
-    command = call.data[5:]
-    if command == "/donate":
-        send_donate_menu(call.message)
-    else:
-        bot.answer_callback_query(call.id, f"Выберите {command} в меню")
+        void graphPanel_MouseUp(Object^ sender, MouseEventArgs^ e)
+        {
+            if (isDrawingEdge && tempEdge != nullptr && selectedElement != nullptr)
+            {
+                GraphElement^ targetElement = FindElementAtPoint(e->Location);
+                if (targetElement != nullptr && targetElement != tempEdge->Source)
+                {
+                    tempEdge->Target = targetElement;
+                    tempEdge->EndPoint = GetElementConnectionPoint(targetElement, e->Location);
+                    edges->Add(tempEdge);
+                }
+                tempEdge = nullptr;
+                graphPanel->Invalidate();
+            }
+            
+            isDragging = false;
+            selectedElement = nullptr;
+        }
 
-# Ежедневные уведомления
-def daily_notifications():
-    while True:
-        now = datetime.now()
-        if now.hour == 0 and now.minute < 1:  # Первая минута после полуночи
-            today = date.today()
-            for user_id, user in users.items():
-                if user.get('notifications', False) and user.get('agreed', False):
-                    try:
-                        birthday = datetime.strptime(user['birthday'], "%d.%m.%Y").date()
-                        days = days_until_birthday(birthday)
+        GraphElement^ FindElementAtPoint(Point point)
+        {
+            for (int i = graphElements->Count - 1; i >= 0; i--)
+            {
+                if (graphElements[i]->Bounds.Contains(point))
+                {
+                    return graphElements[i];
+                }
+            }
+            return nullptr;
+        }
+
+        Point GetElementConnectionPoint(GraphElement^ element, Point referencePoint)
+        {
+            Rectangle bounds = element->Bounds;
+            Point center = Point(bounds.X + bounds.Width / 2, bounds.Y + bounds.Height / 2);
+            
+            // Simple implementation - connect to nearest edge
+            if (Math::Abs(referencePoint.X - center.X) > Math::Abs(referencePoint.Y - center.Y))
+            {
+                return Point(
+                    referencePoint.X < center.X ? bounds.Left : bounds.Right,
+                    center.Y
+                );
+            }
+            else
+            {
+                return Point(
+                    center.X,
+                    referencePoint.Y < center.Y ? bounds.Top : bounds.Bottom
+                );
+            }
+        }
+
+        void graphPanel_Paint(Object^ sender, PaintEventArgs^ e)
+        {
+            Graphics^ g = e->Graphics;
+            g->SmoothingMode = System::Drawing::Drawing2D::SmoothingMode::AntiAlias;
+            
+            // Draw edges first (under nodes)
+            for each (GraphEdge^ edge in edges)
+            {
+                edge->Draw(g);
+            }
+            
+            // Draw temporary edge if in edge mode
+            if (tempEdge != nullptr)
+            {
+                tempEdge->Draw(g);
+            }
+            
+            // Draw elements
+            for each (GraphElement^ element in graphElements)
+            {
+                element->Draw(g);
+            }
+        }
+
+        void addCustomElementButton_Click(Object^ sender, EventArgs^ e)
+        {
+            if (!String::IsNullOrEmpty(customElementName->Text))
+            {
+                toolbox->Items->Add(customElementName->Text);
+                customElementName->Text = "";
+            }
+        }
+
+        void edgeModeButton_Click(Object^ sender, EventArgs^ e)
+        {
+            isDrawingEdge = !isDrawingEdge;
+            edgeModeButton->Text = "Edge Mode " + (isDrawingEdge ? "(On)" : "(Off)");
+        }
+
+        void saveToolStripMenuItem_Click(Object^ sender, EventArgs^ e)
+        {
+            SaveFileDialog^ saveDialog = gcnew SaveFileDialog();
+            saveDialog->Filter = "JSON Files|*.json|All Files|*.*";
+            saveDialog->Title = "Save Graph";
+            
+            if (saveDialog->ShowDialog() == System::Windows::Forms::DialogResult::OK)
+            {
+                json j;
+                
+                // Save nodes
+                j["nodes"] = json::array();
+                for each (GraphElement^ element in graphElements)
+                {
+                    json node;
+                    node["id"] = element->Id;
+                    node["type"] = msclr::interop::marshal_as<std::string>(element->Type);
+                    node["text"] = msclr::interop::marshal_as<std::string>(element->Text);
+                    node["x"] = element->Location.X;
+                    node["y"] = element->Location.Y;
+                    node["color"] = element->Color.ToArgb();
+                    j["nodes"].push_back(node);
+                }
+                
+                // Save edges
+                j["edges"] = json::array();
+                for each (GraphEdge^ edge in edges)
+                {
+                    json edgeJson;
+                    edgeJson["source"] = edge->Source->Id;
+                    edgeJson["target"] = edge->Target->Id;
+                    j["edges"].push_back(edgeJson);
+                }
+                
+                // Write to file
+                std::ofstream outFile(msclr::interop::marshal_as<std::string>(saveDialog->FileName));
+                outFile << j.dump(4);
+                outFile.close();
+                
+                statusLabel->Text = "Graph saved successfully";
+            }
+        }
+
+        void loadToolStripMenuItem_Click(Object^ sender, EventArgs^ e)
+        {
+            OpenFileDialog^ openDialog = gcnew OpenFileDialog();
+            openDialog->Filter = "JSON Files|*.json|All Files|*.*";
+            openDialog->Title = "Load Graph";
+            
+            if (openDialog->ShowDialog() == System::Windows::Forms::DialogResult::OK)
+            {
+                try
+                {
+                    // Clear current graph
+                    graphElements->Clear();
+                    edges->Clear();
+                    nodeIdCounter = 1;
+                    
+                    // Read JSON file
+                    std::ifstream inFile(msclr::interop::marshal_as<std::string>(openDialog->FileName));
+                    json j;
+                    inFile >> j;
+                    inFile.close();
+                    
+                    // Load nodes
+                    std::map<int, GraphElement^> nodeMap;
+                    for (auto& nodeJson : j["nodes"])
+                    {
+                        GraphNode^ newNode = gcnew GraphNode();
+                        newNode->Id = nodeJson["id"];
+                        newNode->Type = msclr::interop::marshal_as<String^>(nodeJson["type"].get<std::string>());
+                        newNode->Text = msclr::interop::marshal_as<String^>(nodeJson["text"].get<std::string>());
+                        newNode->Location = Point(nodeJson["x"], nodeJson["y"]);
+                        newNode->Size = System::Drawing::Size(100, 40);
+                        newNode->Color = Color::FromArgb(nodeJson["color"]);
                         
-                        if days == 0:
-                            msg = f"🎉 {user['fio']}, с Днем Рождения! 🎉"
-                            if user.get('donated', 0) > 0:
-                                msg += f"\n\nСпасибо за вашу поддержку ({user['donated']} звезд)!"
-                        else:
-                            msg = f"{user['fio']}, до вашего ДР осталось {days} дней"
+                        graphElements->Add(newNode);
+                        nodeMap[nodeJson["id"]] = newNode;
                         
-                        bot.send_message(int(user_id), msg)
-                        generate_and_send_profile(int(user_id), user_id)
-                    except Exception as e:
-                        print(f"Ошибка уведомления для {user_id}: {e}")
-            time.sleep(60)  # Проверяем раз в минуту
-        else:
-            time.sleep(30)
-
-if __name__ == '__main__':
-    print("Бот запущен...")
-    # Создаем папку для аватарок, если её нет
-    os.makedirs("avatars", exist_ok=True)
-    
-    # Запускаем поток для ежедневных уведомлений
-    notification_thread = threading.Thread(target=daily_notifications, daemon=True)
-    notification_thread.start()
-    
-    try:
-        bot.infinity_polling()
-    except Exception as e:
-        print(f"Ошибка: {e}")
+                        // Update ID counter
+                        if (newNode->Id >= nodeIdCounter)
+                        {
+                            nodeIdCounter = newNode->Id + 1;
+                        }
+                    }
+                    
+                    // Load edges
+                    for (auto& edgeJson : j["edges"])
+                    {
+                        GraphEdge^ newEdge = gcnew GraphEdge();
+                        newEdge->Source = nodeMap[edgeJson["source"]];
+                        newEdge->Target = nodeMap[edgeJson["target"]];
+                        
+                        // Calculate connection points
+                        Point centerSource = Point(
+                            newEdge->Source->Location.X + newEdge->Source->Size.Width / 2,
+                            newEdge->Source->Location.Y + newEdge->Source->Size.Height / 2
+                        );
+                        Point centerTarget = Point(
+                            newEdge->Target->Location.X + newEdge->Target->Size.Width / 2,
+                            newEdge->Target->Location.Y + newEdge->Target->Size.Height / 2
+                        );
+                        
+                        newEdge->StartPoint = GetElementConnectionPoint(newEdge->Source, centerTarget);
+                        newEdge->EndPoint = GetElementConnectionPoint(newEdge->Target, centerSource);
+                        
+                        edges->Add(newEdge);
+                    }
+                    
+                    graphPanel->Invalidate();
+                    statusLabel->Text = "Graph loaded successfully";
+                }
+                catch (Exception^ ex)
+                {
+                    MessageBox::Show("Error loading file: " + ex->Message, "Error", 
+                                    MessageBoxButtons::OK, MessageBoxIcon::Error);
+                }
+            }
+        }
+    };
+}
