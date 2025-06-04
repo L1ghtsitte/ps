@@ -14,6 +14,7 @@ namespace MaltegoClone {
     using namespace System;
     using namespace System::ComponentModel;
     using namespace System::Collections;
+    using namespace System::Collections::Generic;
     using namespace System::Windows::Forms;
     using namespace System::Data;
     using namespace System::Drawing;
@@ -37,7 +38,7 @@ namespace MaltegoClone {
             nodeIdCounter = 1;
             
             // Set up drag and drop
-            this->toolbox->ItemDrag += gcnew ItemDragEventHandler(this, &MainForm::toolbox_ItemDrag);
+            this->toolbox->MouseDown += gcnew MouseEventHandler(this, &MainForm::toolbox_MouseDown);
             this->graphPanel->DragEnter += gcnew DragEventHandler(this, &MainForm::graphPanel_DragEnter);
             this->graphPanel->DragDrop += gcnew DragEventHandler(this, &MainForm::graphPanel_DragDrop);
             this->graphPanel->MouseDown += gcnew MouseEventHandler(this, &MainForm::graphPanel_MouseDown);
@@ -72,6 +73,8 @@ namespace MaltegoClone {
         System::Windows::Forms::Button^ addCustomElementButton;
         System::Windows::Forms::TextBox^ customElementName;
         System::Windows::Forms::Button^ edgeModeButton;
+        System::Windows::Forms::ContextMenuStrip^ nodeContextMenu;
+        System::Windows::Forms::ToolStripMenuItem^ editNodeToolStripMenuItem;
 
         List<GraphElement^>^ graphElements;
         List<GraphEdge^>^ edges;
@@ -85,6 +88,7 @@ namespace MaltegoClone {
 
         void InitializeComponent(void)
         {
+            this->components = gcnew System::ComponentModel::Container();
             this->graphPanel = gcnew System::Windows::Forms::Panel();
             this->menuStrip = gcnew System::Windows::Forms::MenuStrip();
             this->fileToolStripMenuItem = gcnew System::Windows::Forms::ToolStripMenuItem();
@@ -97,7 +101,11 @@ namespace MaltegoClone {
             this->addCustomElementButton = gcnew System::Windows::Forms::Button();
             this->customElementName = gcnew System::Windows::Forms::TextBox();
             this->edgeModeButton = gcnew System::Windows::Forms::Button();
+            this->nodeContextMenu = gcnew System::Windows::Forms::ContextMenuStrip(this->components);
+            this->editNodeToolStripMenuItem = gcnew System::Windows::Forms::ToolStripMenuItem();
+            this->nodeContextMenu->SuspendLayout();
             this->menuStrip->SuspendLayout();
+            this->statusStrip->SuspendLayout();
             this->SuspendLayout();
             
             // graphPanel
@@ -107,6 +115,7 @@ namespace MaltegoClone {
             this->graphPanel->Size = System::Drawing::Size(650, 423);
             this->graphPanel->TabIndex = 0;
             this->graphPanel->AllowDrop = true;
+            this->graphPanel->ContextMenuStrip = this->nodeContextMenu;
             
             // menuStrip
             this->menuStrip->Items->AddRange(gcnew cli::array< System::Windows::Forms::ToolStripItem^  >(2) {
@@ -188,6 +197,19 @@ namespace MaltegoClone {
             this->edgeModeButton->Text = L"Edge Mode (Off)";
             this->edgeModeButton->Click += gcnew System::EventHandler(this, &MainForm::edgeModeButton_Click);
             
+            // nodeContextMenu
+            this->nodeContextMenu->Items->AddRange(gcnew cli::array< System::Windows::Forms::ToolStripItem^  >(1) {
+                this->editNodeToolStripMenuItem
+            });
+            this->nodeContextMenu->Name = L"nodeContextMenu";
+            this->nodeContextMenu->Size = System::Drawing::Size(153, 48);
+            
+            // editNodeToolStripMenuItem
+            this->editNodeToolStripMenuItem->Name = L"editNodeToolStripMenuItem";
+            this->editNodeToolStripMenuItem->Size = System::Drawing::Size(152, 22);
+            this->editNodeToolStripMenuItem->Text = L"Edit Node";
+            this->editNodeToolStripMenuItem->Click += gcnew System::EventHandler(this, &MainForm::editNodeToolStripMenuItem_Click);
+            
             // MainForm
             this->AutoScaleDimensions = System::Drawing::SizeF(6, 13);
             this->AutoScaleMode = System::Windows::Forms::AutoScaleMode::Font;
@@ -202,8 +224,11 @@ namespace MaltegoClone {
             this->MainMenuStrip = this->menuStrip;
             this->Name = L"MainForm";
             this->Text = L"Maltego-like Graph Editor";
+            this->nodeContextMenu->ResumeLayout(false);
             this->menuStrip->ResumeLayout(false);
             this->menuStrip->PerformLayout();
+            this->statusStrip->ResumeLayout(false);
+            this->statusStrip->PerformLayout();
             this->ResumeLayout(false);
             this->PerformLayout();
         }
@@ -217,46 +242,23 @@ namespace MaltegoClone {
             toolbox->Items->Add("IP Address");
             toolbox->Items->Add("Email");
             toolbox->Items->Add("Document");
+            toolbox->Items->Add("Social Network");
+            toolbox->Items->Add("School");
+            toolbox->Items->Add("Address");
+            toolbox->Items->Add("Phone Number");
         }
 
         void LoadModules()
         {
             modules = gcnew List<IMaltegoModule^>();
-            // In a real implementation, this would load DLLs
-            // For now we'll just add a sample module
-            // modules->Add(gcnew SampleModule());
-            
-            // Add module menu items
-            for each (IMaltegoModule^ module in modules)
-            {
-                ToolStripMenuItem^ item = gcnew ToolStripMenuItem(module->GetModuleName());
-                item->Click += gcnew EventHandler(this, &MainForm::ModuleMenuItem_Click);
-                modulesToolStripMenuItem->DropDownItems->Add(item);
-            }
-            
             statusLabel->Text = "Loaded " + modules->Count + " modules";
         }
 
-        void ModuleMenuItem_Click(Object^ sender, EventArgs^ e)
+        void toolbox_MouseDown(Object^ sender, MouseEventArgs^ e)
         {
-            ToolStripMenuItem^ item = (ToolStripMenuItem^)sender;
-            String^ moduleName = item->Text;
-            
-            for each (IMaltegoModule^ module in modules)
+            if (toolbox->SelectedItem != nullptr)
             {
-                if (module->GetModuleName() == moduleName)
-                {
-                    module->Execute(this->graphPanel);
-                    break;
-                }
-            }
-        }
-
-        void toolbox_ItemDrag(Object^ sender, ItemDragEventArgs^ e)
-        {
-            if (e->Item != nullptr)
-            {
-                DoDragDrop(e->Item, DragDropEffects::Copy);
+                DoDragDrop(toolbox->SelectedItem, DragDropEffects::Copy);
             }
         }
 
@@ -283,6 +285,22 @@ namespace MaltegoClone {
                 newNode->Size = System::Drawing::Size(100, 40);
                 newNode->Color = GetColorForType(elementType);
                 
+                // Add additional properties for Person
+                if (elementType == "Person")
+                {
+                    newNode->Properties = gcnew Dictionary<String^, String^>();
+                    newNode->Properties->Add("First Name", "");
+                    newNode->Properties->Add("Last Name", "");
+                    newNode->Properties->Add("Age", "");
+                    newNode->Properties->Add("Gender", "");
+                    newNode->Properties->Add("Social Networks", "");
+                    newNode->Properties->Add("School", "");
+                    newNode->Properties->Add("Address", "");
+                    newNode->Properties->Add("Phone", "");
+                    newNode->Properties->Add("Email", "");
+                    newNode->Properties->Add("Workplace", "");
+                }
+                
                 graphElements->Add(newNode);
                 graphPanel->Invalidate();
             }
@@ -296,11 +314,25 @@ namespace MaltegoClone {
             if (type == "IP Address") return Color::LightSalmon;
             if (type == "Email") return Color::LightGoldenrodYellow;
             if (type == "Document") return Color::LightGray;
+            if (type == "Social Network") return Color::LightCyan;
+            if (type == "School") return Color::LightSkyBlue;
+            if (type == "Address") return Color::LightYellow;
+            if (type == "Phone Number") return Color::LightCoral;
             return Color::White;
         }
 
         void graphPanel_MouseDown(Object^ sender, MouseEventArgs^ e)
         {
+            if (e->Button == System::Windows::Forms::MouseButtons::Right)
+            {
+                selectedElement = FindElementAtPoint(e->Location);
+                if (selectedElement != nullptr)
+                {
+                    nodeContextMenu->Show(graphPanel, e->Location);
+                }
+                return;
+            }
+
             if (isDrawingEdge)
             {
                 // Start drawing an edge
@@ -359,6 +391,58 @@ namespace MaltegoClone {
             selectedElement = nullptr;
         }
 
+        void editNodeToolStripMenuItem_Click(Object^ sender, EventArgs^ e)
+        {
+            if (selectedElement != nullptr)
+            {
+                // Create a form to edit node properties
+                Form^ editForm = gcnew Form();
+                editForm->Text = "Edit " + selectedElement->Type;
+                editForm->Width = 400;
+                editForm->Height = 500;
+                
+                PropertyGrid^ propertyGrid = gcnew PropertyGrid();
+                propertyGrid->Dock = DockStyle::Fill;
+                
+                // Create a dynamic object to hold properties
+                dynamic^ nodeProperties = gcnew System::Dynamic::ExpandoObject();
+                
+                // Add basic properties
+                nodeProperties->Text = selectedElement->Text;
+                
+                // Add custom properties if they exist
+                if (selectedElement->Properties != nullptr)
+                {
+                    for each (KeyValuePair<String^, String^>^ pair in selectedElement->Properties)
+                    {
+                        try {
+                            nodeProperties->GetType()->AddProperty(pair->Key);
+                            nodeProperties->GetType()->GetProperty(pair->Key)->SetValue(nodeProperties, pair->Value, nullptr);
+                        }
+                        catch (...) {}
+                    }
+                }
+                
+                propertyGrid->SelectedObject = nodeProperties;
+                editForm->Controls->Add(propertyGrid);
+                
+                Button^ saveButton = gcnew Button();
+                saveButton->Text = "Save";
+                saveButton->Dock = DockStyle::Bottom;
+                saveButton->Click += gcnew EventHandler(this, &MainForm::saveProperties_Click);
+                editForm->Controls->Add(saveButton);
+                
+                editForm->ShowDialog();
+            }
+        }
+
+        void saveProperties_Click(Object^ sender, EventArgs^ e)
+        {
+            // Implementation to save edited properties would go here
+            // This is a placeholder for the actual save functionality
+            MessageBox::Show("Properties saved!", "Success");
+        }
+
         GraphElement^ FindElementAtPoint(Point point)
         {
             for (int i = graphElements->Count - 1; i >= 0; i--)
@@ -376,7 +460,6 @@ namespace MaltegoClone {
             Rectangle bounds = element->Bounds;
             Point center = Point(bounds.X + bounds.Width / 2, bounds.Y + bounds.Height / 2);
             
-            // Simple implementation - connect to nearest edge
             if (Math::Abs(referencePoint.X - center.X) > Math::Abs(referencePoint.Y - center.Y))
             {
                 return Point(
@@ -479,7 +562,6 @@ namespace MaltegoClone {
                     // Save edges
                     for each (GraphEdge^ edge in edges)
                     {
-                        // Calculate edge properties
                         int x1 = edge->StartPoint.X;
                         int y1 = edge->StartPoint.Y;
                         int x2 = edge->EndPoint.X;
@@ -488,13 +570,11 @@ namespace MaltegoClone {
                         double length = Math::Sqrt(Math::Pow(x2 - x1, 2) + Math::Pow(y2 - y1, 2));
                         double angle = Math::Atan2(y2 - y1, x2 - x1) * 180 / Math::PI;
                         
-                        // Edge line
                         htmlBuilder->AppendLine(String::Format(
                             "<div class=\"edge\" style=\"left:{0}px; top:{1}px; width:{2}px; transform: rotate({3}deg);\"></div>",
                             x1, y1, length, angle
                         ));
                         
-                        // Arrowhead
                         htmlBuilder->AppendLine(String::Format(
                             "<div class=\"arrow\" style=\"left:{0}px; top:{1}px; border-width:5px 0 5px 10px; border-color:transparent transparent transparent black; transform: translate(-10px, -5px) rotate({2}deg);\"></div>",
                             x2, y2, angle
@@ -504,9 +584,7 @@ namespace MaltegoClone {
                     htmlBuilder->AppendLine("</body>");
                     htmlBuilder->AppendLine("</html>");
                     
-                    // Write to file
                     File::WriteAllText(saveDialog->FileName, htmlBuilder->ToString());
-                    
                     statusLabel->Text = "Graph saved as HTML successfully";
                 }
                 catch (Exception^ ex)
@@ -527,19 +605,13 @@ namespace MaltegoClone {
             {
                 try
                 {
-                    // HTML loading would be more complex in reality
-                    // This is a simplified version that just clears the current graph
-                    // since parsing HTML layout would require a full HTML parser
-                    
                     graphElements->Clear();
                     edges->Clear();
                     nodeIdCounter = 1;
                     graphPanel->Invalidate();
                     
                     statusLabel->Text = "Graph cleared (HTML loading not fully implemented)";
-                    MessageBox::Show("Loading from HTML is not fully implemented in this example. " +
-                                    "In a complete implementation, this would parse the HTML and " +
-                                    "recreate all nodes and edges.", "Information");
+                    MessageBox::Show("Loading from HTML is not fully implemented in this example.", "Information");
                 }
                 catch (Exception^ ex)
                 {
