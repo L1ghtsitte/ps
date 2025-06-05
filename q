@@ -3,28 +3,33 @@
 
 namespace MaltegoClone {
 
-    public ref class GraphNode : public GraphElement
+    public ref class GraphEdge
     {
     public:
-        virtual void Draw(Graphics^ g) override
+        GraphElement^ Source;
+        GraphElement^ Target;
+        PointF StartPoint;
+        PointF EndPoint;
+
+        void Draw(Graphics^ g)
         {
-            SolidBrush^ brush = gcnew SolidBrush(Color);
             Pen^ pen = gcnew Pen(Color::Black, 2);
+            g->DrawLine(pen, StartPoint, EndPoint);
             
-            g->FillRectangle(brush, Bounds);
-            g->DrawRectangle(pen, Bounds);
+            // Draw arrow head
+            float arrowSize = 8;
+            PointF arrowPoint = EndPoint;
+            PointF arrowLeft = PointF(
+                EndPoint.X - arrowSize,
+                EndPoint.Y - arrowSize);
+            PointF arrowRight = PointF(
+                EndPoint.X - arrowSize,
+                EndPoint.Y + arrowSize);
             
-            System::Drawing::Font^ font = gcnew System::Drawing::Font("Arial", 8);
-            StringFormat^ format = gcnew StringFormat();
-            format->Alignment = StringAlignment::Center;
-            format->LineAlignment = StringAlignment::Center;
+            array<PointF>^ arrowPoints = gcnew array<PointF> { arrowPoint, arrowLeft, arrowRight };
+            g->FillPolygon(Brushes::Black, arrowPoints);
             
-            g->DrawString(Text, font, Brushes::Black, 
-                RectangleF(Location.X, Location.Y, Size.Width, Size.Height), format);
-            
-            delete brush;
             delete pen;
-            delete font;
         }
     };
 }
