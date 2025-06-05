@@ -90,6 +90,22 @@ private:
         return closestNode;
     }
 
+    // Класс для хранения информации о связях
+    ref class EdgeDefinition
+    {
+    public:
+        Point Start;
+        Point End;
+        Color EdgeColor;
+
+        EdgeDefinition(Point start, Point end, Color color)
+        {
+            Start = start;
+            End = end;
+            EdgeColor = color;
+        }
+    };
+
 public:
     void ImportFromHtml(Object^ sender, EventArgs^ e)
     {
@@ -107,7 +123,7 @@ public:
                 
                 String^ html = File::ReadAllText(openDialog->FileName);
                 Dictionary<Point, GraphElement^>^ positionMap = gcnew Dictionary<Point, GraphElement^>();
-                List<Tuple<Point, Point, Color>^>^ edgeDefinitions = gcnew List<Tuple<Point, Point, Color>^>();
+                List<EdgeDefinition^>^ edgeDefinitions = gcnew List<EdgeDefinition^>();
                 
                 // Parse nodes
                 int nodeSearchPos = 0;
@@ -193,7 +209,7 @@ public:
                         float endX = startX + length * (float)Math::Cos(angle * Math::PI / 180);
                         float endY = startY + length * (float)Math::Sin(angle * Math::PI / 180);
                         
-                        edgeDefinitions->Add(Tuple::Create(
+                        edgeDefinitions->Add(gcnew EdgeDefinition(
                             Point(startX, startY),
                             Point((int)endX, (int)endY),
                             ParseHtmlColor(colorStr)
@@ -209,17 +225,17 @@ public:
                 }
                 
                 // Create edges
-                for each (Tuple<Point, Point, Color>^ edgeDef in edgeDefinitions)
+                for each (EdgeDefinition^ edgeDef in edgeDefinitions)
                 {
-                    GraphElement^ source = FindClosestNode(positionMap, edgeDef->Item1);
-                    GraphElement^ target = FindClosestNode(positionMap, edgeDef->Item2);
+                    GraphElement^ source = FindClosestNode(positionMap, edgeDef->Start);
+                    GraphElement^ target = FindClosestNode(positionMap, edgeDef->End);
                     
                     if (source != nullptr && target != nullptr)
                     {
                         GraphEdge^ edge = gcnew GraphEdge();
                         edge->source = source;
                         edge->target = target;
-                        edge->color = edgeDef->Item3;
+                        edge->color = edgeDef->EdgeColor;
                         edges->Add(edge);
                     }
                 }
