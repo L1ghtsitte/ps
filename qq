@@ -1,544 +1,525 @@
-import os
-import json
-import random
-import math
-from datetime import datetime, date, timedelta
-from PIL import Image, ImageDraw, ImageFont, ImageOps
-from io import BytesIO
-import telebot
-from telebot import types
-import threading
-import time
+// GraphElement.h
+#pragma once
+#include <map>
+#include <string>
 
-# Настройки бота
-TOKEN = '-'
-bot = telebot.TeleBot(TOKEN)
+using namespace System;
+using namespace System::Drawing;
+using namespace System::Collections::Generic;
 
-# Конфигурация
-USERS_FILE = 'users.json'
-IMAGE_SIZE = (1980, 1080)
-AVATAR_SIZE = 400  # Размер круглой аватарки
-BASE_FONT_RATIO = 0.15  # 15% от высоты изображения
+namespace MaltegoClone {
+    public enum class ElementType {
+        Person, Organization, Website, IPAddress, Email,
+        Document, SocialNetwork, School, Address, PhoneNumber, Custom
+    };
 
-# Типы градиентов
-GRADIENT_TYPES = {
-    "vertical": "Вертикальный",
-    "horizontal": "Горизонтальный",
-    "radial": "Круговой",
-    "diagonal": "Диагональный"
+    public ref class GraphElement {
+    public:
+        int id;
+        ElementType type;
+        String^ text;
+        Point location;
+        Size size;
+        Color color;
+        Dictionary<String^, String^>^ properties;
+        bool is_expanded;
+        String^ notes;
+
+        GraphElement() {
+            properties = gcnew Dictionary<String^, String^>();
+            is_expanded = false;
+            notes = String::Empty;
+            color = Color::FromArgb(45, 45, 48);
+            size = Size(120, 40);
+        }
+
+        property Rectangle bounds {
+            Rectangle get() { return Rectangle(location, size); }
+        }
+
+        virtual void Draw(Graphics^ g) = 0;
+        virtual void Expand() { is_expanded = !is_expanded; UpdateSize(); }
+        virtual void UpdateSize() {
+            size = is_expanded ? Size(250, 150) : Size(120, 40);
+        }
+    };
 }
 
-
-# Загрузка данных пользователей
-def load_users():
-    if not os.path.exists(USERS_FILE):
-        return {}
-    try:
-        with open(USERS_FILE, 'r', encoding='utf-8') as f:
-            return json.load(f)
-    except:
-        return {}
-
-
-def save_users(users):
-    with open(USERS_FILE, 'w', encoding='utf-8') as f:
-        json.dump(users, f, ensure_ascii=False, indent=4)
-
-
-users = load_users()
-
-
-# Генерация разных типов градиентов
-def generate_gradient_background(size, num_colors=3):
-    """Генерирует случайный тип градиента"""
-    gradient_type = random.choice(list(GRADIENT_TYPES.keys()))
-    colors = [(random.randint(0, 150), random.randint(0, 150), random.randint(0, 150)) for _ in range(num_colors)]
-
-    img = Image.new('RGB', size)
-    draw = ImageDraw.Draw(img)
-    width, height = size
-
-    if gradient_type == "vertical":
-        for i in range(height):
-            pos = i / height
-            color = get_gradient_color(colors, pos)
-            draw.line([(0, i), (width, i)], fill=color)
-
-    elif gradient_type == "horizontal":
-        for i in range(width):
-            pos = i / width
-            color = get_gradient_color(colors, pos)
-            draw.line([(i, 0), (i, height)], fill=color)
-
-    elif gradient_type == "radial":
-        center_x, center_y = width // 2, height // 2
-        max_radius = int(math.sqrt(center_x ** 2 + center_y ** 2))
-
-        for radius in range(max_radius, 0, -1):
-            pos = 1 - radius / max_radius
-            color = get_gradient_color(colors, pos)
-            draw.ellipse([
-                (center_x - radius, center_y - radius),
-                (center_x + radius, center_y + radius)
-            ], fill=color)
-
-    elif gradient_type == "diagonal":
-        max_diag = int(math.sqrt(width ** 2 + height ** 2))
-        for i in range(max_diag):
-            pos = i / max_diag
-            color = get_gradient_color(colors, pos)
-            draw.line(diagonal_coords(i, width, height), fill=color, width=2)
-
-    return img, colors, GRADIENT_TYPES[gradient_type]
-
-
-def get_gradient_color(colors, pos):
-    """Возвращает цвет из градиента по позиции"""
-    color_idx = pos * (len(colors) - 1)
-    idx1 = int(math.floor(color_idx))
-    idx2 = min(idx1 + 1, len(colors) - 1)
-    factor = color_idx - idx1
-
-    r = int(colors[idx1][0] + (colors[idx2][0] - colors[idx1][0]) * factor)
-    g = int(colors[idx1][1] + (colors[idx2][1] - colors[idx1][1]) * factor)
-    b = int(colors[idx1][2] + (colors[idx2][2] - colors[idx1][2]) * factor)
-
-    return (r, g, b)
-
-
-def diagonal_coords(i, width, height):
-    """Координаты для диагонального градиента"""
-    if i < height:
-        return (0, height - i), (i, height)
-    else:
-        return (i - height, 0), (width, i - height + (height - (i - height)))
-
-
-# Создание круглой аватарки
-def make_circular_avatar(image_path):
-    img = Image.open(image_path).resize((AVATAR_SIZE, AVATAR_SIZE))
-    mask = Image.new('L', (AVATAR_SIZE, AVATAR_SIZE), 0)
-    ImageDraw.Draw(mask).ellipse((0, 0, AVATAR_SIZE, AVATAR_SIZE), fill=255)
-    output = ImageOps.fit(img, mask.size, centering=(0.5, 0.5))
-    output.putalpha(mask)
-    return output
-
-
-# Генерация изображения профиля
-def generate_profile_image(user):
-    # Создаем градиентный фон
-    img, colors, gradient_type = generate_gradient_background(IMAGE_SIZE)
-    draw = ImageDraw.Draw(img)
-
-    # Настраиваем шрифты (15% от высоты изображения)
-    base_font_size = int(IMAGE_SIZE[1] * BASE_FONT_RATIO)
-    try:
-        font_large = ImageFont.truetype("arial.ttf", int(base_font_size * 0.7))
-        font_medium = ImageFont.truetype("arial.ttf", int(base_font_size * 0.5))
-        font_small = ImageFont.truetype("arial.ttf", int(base_font_size * 0.3))
-    except:
-        font_large = ImageFont.load_default(size=int(base_font_size * 0.7))
-        font_medium = ImageFont.load_default(size=int(base_font_size * 0.5))
-        font_small = ImageFont.load_default(size=int(base_font_size * 0.3))
-
-    # Добавляем аватар (по центру сверху)
-    if user['avatar'] and os.path.exists(user['avatar']):
-        avatar = make_circular_avatar(user['avatar'])
-        img.paste(avatar, ((IMAGE_SIZE[0] - AVATAR_SIZE) // 2, int(IMAGE_SIZE[1] * 0.05)), avatar)
-
-    # Функция для центрирования текста
-    def draw_centered_text(y, text, font, fill=(255, 255, 255)):
-        bbox = draw.textbbox((0, 0), text, font=font)
-        w, h = bbox[2] - bbox[0], bbox[3] - bbox[1]
-        draw.text(((IMAGE_SIZE[0] - w) // 2, y), text, font=font, fill=fill)
-        return y + h
-
-    # Рисуем текст
-    y_pos = int(IMAGE_SIZE[1] * 0.05) + AVATAR_SIZE + int(IMAGE_SIZE[1] * 0.05)
-
-    username = f"@{user['username']}" if user['username'] else "Без юзернейма"
-    y_pos = draw_centered_text(y_pos, username, font_large) + int(IMAGE_SIZE[1] * 0.03)
-    y_pos = draw_centered_text(y_pos, user['fio'], font_medium) + int(IMAGE_SIZE[1] * 0.02)
-
-    # Возраст и количество прожитых дней
-    birthday = datetime.strptime(user['birthday'], "%d.%m.%Y").date()
-    today = date.today()
-    lived_days = (today - birthday).days
-    age_text = f"Возраст: {user['age']} лет | {lived_days} дней"
-    y_pos = draw_centered_text(y_pos, age_text, font_medium) + int(IMAGE_SIZE[1] * 0.02)
-
-    # Дни до дня рождения
-    days_left = days_until_birthday(birthday)
-    days_text = "🎉 С ДНЕМ РОЖДЕНИЯ! 🎉" if days_left == 0 else f"До дня рождения: {days_left} дней"
-    y_pos = draw_centered_text(y_pos, days_text, font_medium)
-
-    # Добавляем палитру цветов
-    palette = " | ".join([f"#{r:02x}{g:02x}{b:02x}" for r, g, b in colors])
-    draw_centered_text(IMAGE_SIZE[1] - int(base_font_size * 0.4), f"Тип градиента: {gradient_type} | Цвета фона: {palette}", font_small)
-    return img
-
-
-# Вспомогательные функции
-def calculate_age(birthday):
-    today = date.today()
-    return today.year - birthday.year - ((today.month, today.day) < (birthday.month, birthday.day))
-
-
-def days_until_birthday(birthday):
-    today = date.today()
-    next_bday = date(today.year, birthday.month, birthday.day)
-    if next_bday < today:
-        next_bday = date(today.year + 1, birthday.month, birthday.day)
-    return (next_bday - today).days
-
-
-# Генерация и отправка профиля
-def generate_and_send_profile(chat_id, user_id):
-    if user_id not in users:
-        return
-
-    user = users[user_id]
-    try:
-        img = generate_profile_image(user)
-        with BytesIO() as output:
-            img.save(output, format="JPEG")
-            output.seek(0)
-            bot.send_photo(chat_id, output)
-    except Exception as e:
-        bot.send_message(chat_id, f"Ошибка генерации профиля: {e}")
-
-
-# Команды бота
-@bot.message_handler(commands=['start'])
-def start(message):
-    user_id = str(message.from_user.id)
-
-    # Создаем основное меню
-    markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
-
-    if user_id in users:
-        buttons = [
-            types.KeyboardButton("👤 Мой профиль"),
-            types.KeyboardButton("✏️ Редактировать"),
-            types.KeyboardButton("🔔 Настройки уведомлений"),
-            types.KeyboardButton("❌ Удалить профиль"),
-            types.KeyboardButton("📋 Помощь")
-        ]
-    else:
-        buttons = [
-            types.KeyboardButton("📝 Регистрация"),
-            types.KeyboardButton("📋 Помощь")
-        ]
-
-    markup.add(*buttons)
-
-    # Добавляем меню команд
-    bot.set_my_commands([
-        types.BotCommand("/start", "Главное меню"),
-        types.BotCommand("/profile", "Мой профиль"),
-        types.BotCommand("/edit", "Редактировать профиль"),
-        types.BotCommand("/help", "Помощь")
-    ])
-
-    bot.send_message(message.chat.id,
-                     "Добро пожаловать! Выберите действие:",
-                     reply_markup=markup)
-
-# Регистрация
-@bot.message_handler(func=lambda message: message.text in ["📝 Регистрация", "Регистрация"])
-def registration_start(message):
-    user_id = str(message.from_user.id)
-    if user_id in users:
-        bot.send_message(message.chat.id, "Вы уже зарегистрированы!")
-        return
-
-    msg = bot.send_message(message.chat.id, "Введите ваше ФИО:", reply_markup=types.ReplyKeyboardRemove())
-    bot.register_next_step_handler(msg, process_fio_step)
-
-
-def process_fio_step(message):
-    user_id = str(message.from_user.id)
-    users[user_id] = {
-        'username': message.from_user.username or "",
-        'fio': message.text,
-        'avatar': None,
-        'birthday': None,
-        'notifications': False,
-        'agreed': False
-    }
-
-    msg = bot.send_message(message.chat.id, "Введите дату рождения (ДД.ММ.ГГГГ):")
-    bot.register_next_step_handler(msg, process_birthday_step)
-
-
-def process_birthday_step(message):
-    user_id = str(message.from_user.id)
-    try:
-        birthday = datetime.strptime(message.text, "%d.%m.%Y").date()
-        users[user_id]['birthday'] = message.text
-        users[user_id]['age'] = calculate_age(birthday)
-
-        markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-        markup.add("Да", "Нет")
-        msg = bot.send_message(message.chat.id, "Получать уведомления о Дне рождения?", reply_markup=markup)
-        bot.register_next_step_handler(msg, process_notification_step)
-    except ValueError:
-        msg = bot.send_message(message.chat.id, "Неверный формат. Введите ДД.ММ.ГГГГ:")
-        bot.register_next_step_handler(msg, process_birthday_step)
-
-
-def process_notification_step(message):
-    user_id = str(message.from_user.id)
-    users[user_id]['notifications'] = message.text.lower() == 'да'
-
-    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    markup.add("Согласен", "Не согласен")
-    msg = bot.send_message(message.chat.id, "Согласие на обработку данных:", reply_markup=markup)
-    bot.register_next_step_handler(msg, process_agreement_step)
-
-
-def process_agreement_step(message):
-    user_id = str(message.from_user.id)
-    users[user_id]['agreed'] = message.text.lower() == 'согласен'
-
-    msg = bot.send_message(message.chat.id, "Отправьте ваше фото для аватара:")
-    bot.register_next_step_handler(msg, process_avatar_step)
-
-
-def process_avatar_step(message):
-    user_id = str(message.from_user.id)
-    try:
-        if message.content_type == 'photo':
-            file_id = message.photo[-1].file_id
-            file_info = bot.get_file(file_id)
-            downloaded_file = bot.download_file(file_info.file_path)
-
-            os.makedirs("avatars", exist_ok=True)
-            avatar_path = f"avatars/{user_id}.jpg"
-            with open(avatar_path, 'wb') as new_file:
-                new_file.write(downloaded_file)
-
-            users[user_id]['avatar'] = avatar_path
-            save_users(users)
-
-            bot.send_message(message.chat.id, "✅ Регистрация завершена!")
-            start(message)
-        else:
-            msg = bot.send_message(message.chat.id, "Пожалуйста, отправьте фото.")
-            bot.register_next_step_handler(msg, process_avatar_step)
-    except Exception as e:
-        bot.send_message(message.chat.id, f"Ошибка: {str(e)}")
-        start(message)
-
-
-# Просмотр профиля
-@bot.message_handler(commands=['profile'])
-@bot.message_handler(func=lambda message: message.text in ["👤 Мой профиль", "Мой профиль"])
-def show_profile(message):
-    user_id = str(message.from_user.id)
-    if user_id not in users:
-        bot.send_message(message.chat.id, "Сначала зарегистрируйтесь.")
-        return
-
-    generate_and_send_profile(message.chat.id, user_id)@bot.message_handler(commands=['edit'])
-@bot.message_handler(func=lambda message: message.text in ["✏️ Редактировать", "Редактировать профиль"])
-def edit_profile(message):
-    user_id = str(message.from_user.id)
-    if user_id not in users:
-        bot.send_message(message.chat.id, "Сначала зарегистрируйтесь.")
-        return
-
-    markup = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
-    markup.add(
-        "Изменить ФИО",
-        "Изменить дату рождения",
-        "Изменить аватар",
-        "Назад"
-    )
-    bot.send_message(message.chat.id, "Что редактируем?", reply_markup=markup)
-
-
-@bot.message_handler(func=lambda message: message.text == "Изменить ФИО")
-def change_fio(message):
-    msg = bot.send_message(message.chat.id, "Введите новое ФИО:", reply_markup=types.ReplyKeyboardRemove())
-    bot.register_next_step_handler(msg, process_new_fio)
-
-
-def process_new_fio(message):
-    user_id = str(message.from_user.id)
-    users[user_id]['fio'] = message.text
-    save_users(users)
-    bot.send_message(message.chat.id, "ФИО успешно изменено!")
-    generate_and_send_profile(message.chat.id, user_id)
-
-
-@bot.message_handler(func=lambda message: message.text == "Изменить дату рождения")
-def change_birthday(message):
-    msg = bot.send_message(message.chat.id, "Введите новую дату рождения в формате ДД.ММ.ГГГГ:",
-                           reply_markup=types.ReplyKeyboardRemove())
-    bot.register_next_step_handler(msg, process_new_birthday)
-
-
-def process_new_birthday(message):
-    user_id = str(message.from_user.id)
-    try:
-        birthday = datetime.strptime(message.text, "%d.%m.%Y").date()
-        users[user_id]['birthday'] = message.text
-        users[user_id]['age'] = calculate_age(birthday)
-        save_users(users)
-        bot.send_message(message.chat.id, "Дата рождения успешно изменена!")
-        generate_and_send_profile(message.chat.id, user_id)
-    except ValueError:
-        bot.send_message(message.chat.id, "Неправильный формат даты. Используйте ДД.ММ.ГГГГ")
-
-
-@bot.message_handler(func=lambda message: message.text == "Изменить аватар")
-def change_avatar(message):
-    msg = bot.send_message(message.chat.id, "Отправьте новую аватарку (фото.jpg):", reply_markup=types.ReplyKeyboardRemove())
-    bot.register_next_step_handler(msg, process_new_avatar)
-
-
-def process_new_avatar(message):
-    user_id = str(message.from_user.id)
-    try:
-        if message.content_type == 'photo':
-            file_id = message.photo[-1].file_id
-            file_info = bot.get_file(file_id)
-            downloaded_file = bot.download_file(file_info.file_path)
-
-            avatar_path = f"avatars/{user_id}.jpg"
-            with open(avatar_path, 'wb') as new_file:
-                new_file.write(downloaded_file)
-
-            users[user_id]['avatar'] = avatar_path
-            save_users(users)
-            bot.send_message(message.chat.id, "Аватар успешно изменен!")
-            generate_and_send_profile(message.chat.id, user_id)
-        else:
-            bot.send_message(message.chat.id, "Пожалуйста, отправьте фото.")
-    except Exception as e:
-        bot.send_message(message.chat.id, f"Ошибка: {e}")
-
-
-# Удаление профиля
-@bot.message_handler(func=lambda message: message.text in ["❌ Удалить профиль", "Удалить профиль"])
-def delete_profile(message):
-    user_id = str(message.from_user.id)
-    if user_id not in users:
-        bot.send_message(message.chat.id, "У вас нет профиля.")
-        return
-
-    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    markup.add("Да, удалить", "Нет, отмена")
-    bot.send_message(message.chat.id, "Вы уверены? Это действие нельзя отменить!", reply_markup=markup)
-    bot.register_next_step_handler(message, confirm_delete)
-
-
-def confirm_delete(message):
-    if message.text == "Да, удалить":
-        user_id = str(message.from_user.id)
-        if users[user_id]['avatar'] and os.path.exists(users[user_id]['avatar']):
-            try:
-                os.remove(users[user_id]['avatar'])
-            except:
-                pass
-
-        del users[user_id]
-        save_users(users)
-        bot.send_message(message.chat.id, "Профиль удален.", reply_markup=types.ReplyKeyboardRemove())
-    start(message)
-
-
-# Настройки уведомлений
-@bot.message_handler(func=lambda message: message.text in ["🔔 Настройки уведомлений", "Настройки уведомлений"])
-def notification_settings(message):
-    user_id = str(message.from_user.id)
-    if user_id not in users:
-        bot.send_message(message.chat.id, "Сначала зарегистрируйтесь.")
-        return
-
-    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    if users[user_id]['notifications']:
-        markup.add("Отключить уведомления", "Назад")
-    else:
-        markup.add("Включить уведомления", "Назад")
-
-    status = "включены" if users[user_id]['notifications'] else "отключены"
-    bot.send_message(message.chat.id, f"Уведомления: {status}", reply_markup=markup)
-
-
-@bot.message_handler(func=lambda message: message.text in ["Включить уведомления", "Отключить уведомления"])
-def toggle_notifications(message):
-    user_id = str(message.from_user.id)
-    users[user_id]['notifications'] = not users[user_id]['notifications']
-    save_users(users)
-
-    status = "включены" if users[user_id]['notifications'] else "отключены"
-    bot.send_message(message.chat.id, f"Уведомления теперь {status}!")
-    start(message)
-
-# Список команд
-@bot.message_handler(commands=['help'])
-@bot.message_handler(func=lambda message: message.text in ["📋 Помощь", "Помощь"])
-def show_help(message):
-    help_text = """
-<b>Доступные команды:</b>
-/start - Главное меню
-/profile - Мой профиль
-/edit - Редактировать профиль
-/donate - Поддержать разработчика
-/help - Помощь
-
-<b>Основные функции:</b>
-- Создание профиля с красивым дизайном
-- Отслеживание дней до дня рождения
-- Ежедневные уведомления
-- Разные типы градиентов для фона
-"""
-    bot.send_message(message.chat.id, help_text, parse_mode='HTML')
-
-# Ежедневные уведомления
-def daily_notifications():
-    while True:
-        now = datetime.now()
-        if now.hour == 0 and now.minute < 1:  # Первая минута после полуночи
-            today = date.today()
-            for user_id, user in users.items():
-                if user.get('notifications', False) and user.get('agreed', False):
-                    try:
-                        birthday = datetime.strptime(user['birthday'], "%d.%m.%Y").date()
-                        days = days_until_birthday(birthday)
-
-                        if days == 0:
-                            msg = f"🎉 {user['fio']}, с Днем Рождения! 🎉"
-                        else:
-                            msg = f"{user['fio']}, до вашего ДР осталось {days} дней"
-
-                        bot.send_message(int(user_id), msg)
-                        generate_and_send_profile(int(user_id), user_id)
-                    except Exception as e:
-                        print(f"Ошибка уведомления для {user_id}: {e}")
-            time.sleep(60)  # Проверяем раз в минуту
-        else:
-            time.sleep(30)
-
-
-if __name__ == '__main__':
-    print("Бот запущен...")
-    os.makedirs("avatars", exist_ok=True)
-
-    # Устанавливаем меню команд
-    bot.set_my_commands([
-        types.BotCommand("start", "Главное меню"),
-        types.BotCommand("profile", "Мой профиль"),
-        types.BotCommand("edit", "Редактировать профиль"),
-        types.BotCommand("help", "Помощь")
-    ])
-
-    # Запускаем уведомления в отдельном потоке
-    threading.Thread(target=daily_notifications, daemon=True).start()
-
-    try:
-        bot.infinity_polling()
-    except Exception as e:
-        print(f"Ошибка: {e}")
+// GraphNode.h
+#pragma once
+#include "GraphElement.h"
+
+using namespace System;
+using namespace System::Drawing;
+using namespace System::Windows::Forms;
+
+namespace MaltegoClone {
+    public ref class GraphNode : public GraphElement {
+    public:
+        event EventHandler^ NodeChanged;
+        event EventHandler^ NodeDeleted;
+
+        GraphNode() {
+            this->Editable = true;
+            this->ShowDeleteButton = false;
+            this->ShowEditButton = false;
+            this->Hovered = false;
+        }
+
+        virtual void Draw(Graphics^ g) override {
+            // Draw main rectangle with hover effect
+            SolidBrush^ brush = gcnew SolidBrush(Hovered ? 
+                Color::FromArgb(Math::Min(color.R + 30, 255),
+                Math::Min(color.G + 30, 255),
+                Math::Min(color.B + 30, 255)) : color);
+            
+            Pen^ pen = gcnew Pen(Color::FromArgb(100, 100, 100), 1.5f);
+            g->FillRectangle(brush, bounds);
+            g->DrawRectangle(pen, bounds);
+
+            // Draw buttons when hovered
+            if (Hovered && ShowDeleteButton)
+                DrawButton(g, bounds.Right - 20, bounds.Top, "X", Color::Red);
+            
+            if (Hovered && ShowEditButton)
+                DrawButton(g, bounds.Right - 40, bounds.Top, "E", Color::Blue);
+
+            // Draw title
+            System::Drawing::Font^ font = gcnew System::Drawing::Font("Arial", 9, FontStyle::Bold);
+            StringFormat^ format = gcnew StringFormat();
+            format->Alignment = StringAlignment::Center;
+            format->LineAlignment = StringAlignment::Center;
+            g->DrawString(text, font, Brushes::White,
+                RectangleF(location.X, location.Y, size.Width, 30), format);
+
+            // Draw properties if expanded
+            if (is_expanded) {
+                System::Drawing::Font^ propFont = gcnew System::Drawing::Font("Arial", 8);
+                int y_offset = location.Y + 35;
+                
+                for each (KeyValuePair<String^, String^> pair in properties) {
+                    RectangleF propRect(location.X + 5, y_offset, size.Width - 10, 15);
+                    
+                    // Draw property background
+                    g->FillRectangle(Brushes::LightGray, propRect);
+                    
+                    // Draw property text
+                    String^ propText = pair.Key + ": " + pair.Value;
+                    g->DrawString(propText, propFont, Brushes::Black, propRect);
+                    
+                    y_offset += 15;
+                }
+            }
+        }
+
+        void BeginEditTitle(Control^ parent) {
+            if (!Editable) return;
+
+            TextBox^ editBox = gcnew TextBox();
+            editBox->Text = this->text;
+            editBox->Bounds = Rectangle(location.X, location.Y, size.Width, 30);
+            editBox->Font = gcnew System::Drawing::Font("Arial", 9, FontStyle::Bold);
+            editBox->TextAlign = HorizontalAlignment::Center;
+            editBox->Tag = this;
+            
+            editBox->KeyDown += gcnew KeyEventHandler(this, &GraphNode::EditBox_KeyDown);
+            editBox->LostFocus += gcnew EventHandler(this, &GraphNode::EditBox_LostFocus);
+            
+            parent->Controls->Add(editBox);
+            editBox->Focus();
+        }
+
+        property bool Editable;
+        property bool ShowDeleteButton;
+        property bool ShowEditButton;
+        property bool Hovered;
+
+    private:
+        void DrawButton(Graphics^ g, int x, int y, String^ text, Color color) {
+            Rectangle buttonRect(x, y, 20, 20);
+            SolidBrush^ brush = gcnew SolidBrush(color);
+            g->FillRectangle(brush, buttonRect);
+            g->DrawString(text, gcnew System::Drawing::Font("Arial", 8, FontStyle::Bold), 
+                Brushes::White, PointF(x + 5, y + 3));
+        }
+
+        void EditBox_KeyDown(Object^ sender, KeyEventArgs^ e) {
+            if (e->KeyCode == Keys::Enter)
+                CompleteEditing((TextBox^)sender);
+        }
+
+        void EditBox_LostFocus(Object^ sender, EventArgs^ e) {
+            CompleteEditing((TextBox^)sender);
+        }
+
+        void CompleteEditing(TextBox^ editBox) {
+            this->text = editBox->Text;
+            editBox->Parent->Controls->Remove(editBox);
+            NodeChanged(this, EventArgs::Empty);
+        }
+    };
+}
+
+// GraphEdge.h
+#pragma once
+#include "GraphElement.h"
+
+namespace MaltegoClone {
+    public ref class GraphEdge {
+    public:
+        GraphElement^ source;
+        GraphElement^ target;
+        PointF start_point;
+        PointF end_point;
+        Color color;
+        float width;
+
+        GraphEdge() {
+            color = Color::FromArgb(100, 100, 100);
+            width = 1.5f;
+        }
+
+        void UpdateConnectionPoints() {
+            if (source != nullptr && target != nullptr) {
+                start_point = GetConnectionPoint(source, target->location);
+                end_point = GetConnectionPoint(target, source->location);
+            }
+        }
+
+        void Draw(Graphics^ g) {
+            UpdateConnectionPoints();
+            
+            // Draw line
+            Pen^ pen = gcnew Pen(color, width);
+            g->DrawLine(pen, start_point, end_point);
+
+            // Draw arrow head
+            DrawArrowHead(g);
+        }
+
+    private:
+        PointF GetConnectionPoint(GraphElement^ element, PointF reference_point) {
+            Rectangle bounds = element->bounds;
+            PointF center = PointF(bounds.X + bounds.Width / 2, bounds.Y + bounds.Height / 2);
+
+            float dx = reference_point.X - center.X;
+            float dy = reference_point.Y - center.Y;
+            float distance = (float)Math::Sqrt(dx * dx + dy * dy);
+
+            if (distance > 0) {
+                dx /= distance;
+                dy /= distance;
+            }
+
+            return PointF(
+                center.X + dx * bounds.Width / 2,
+                center.Y + dy * bounds.Height / 2);
+        }
+
+        void DrawArrowHead(Graphics^ g) {
+            float arrow_length = 10.0f;
+            float arrow_width = 4.0f;
+
+            float dx = end_point.X - start_point.X;
+            float dy = end_point.Y - start_point.Y;
+            float length = (float)Math::Sqrt(dx * dx + dy * dy);
+
+            if (length > 0) {
+                dx /= length;
+                dy /= length;
+            }
+
+            PointF adjusted_end = PointF(
+                end_point.X - dx * arrow_length * 0.7f,
+                end_point.Y - dy * arrow_length * 0.7f);
+
+            PointF arrow_left = PointF(
+                adjusted_end.X - dy * arrow_width,
+                adjusted_end.Y + dx * arrow_width);
+            
+            PointF arrow_right = PointF(
+                adjusted_end.X + dy * arrow_width,
+                adjusted_end.Y - dx * arrow_width);
+
+            array<PointF>^ arrow_points = gcnew array<PointF> { end_point, arrow_left, arrow_right };
+            SolidBrush^ brush = gcnew SolidBrush(color);
+            g->FillPolygon(brush, arrow_points);
+        }
+    };
+}
+
+// NodePropertiesEditor.h
+#pragma once
+#include "GraphElement.h"
+
+using namespace System;
+using namespace System::Windows::Forms;
+using namespace System::Drawing;
+
+namespace MaltegoClone {
+    public ref class NodePropertiesEditor : public Form {
+    public:
+        NodePropertiesEditor(GraphElement^ element) {
+            element_ref = element;
+            InitializeComponent();
+            InitializeProperties();
+        }
+
+    private:
+        GraphElement^ element_ref;
+        PropertyGrid^ property_grid;
+        TextBox^ notes_box;
+        Button^ save_button;
+
+        void InitializeComponent() {
+            this->Text = "Edit Node Properties";
+            this->Size = System::Drawing::Size(450, 600);
+            this->FormBorderStyle = FormBorderStyle::FixedDialog;
+            this->StartPosition = FormStartPosition::CenterParent;
+
+            // Property Grid
+            property_grid = gcnew PropertyGrid();
+            property_grid->Dock = DockStyle::Top;
+            property_grid->Height = 400;
+            this->Controls->Add(property_grid);
+
+            // Notes
+            Label^ notes_label = gcnew Label();
+            notes_label->Text = "Notes:";
+            notes_label->Location = Point(10, 410);
+            this->Controls->Add(notes_label);
+
+            notes_box = gcnew TextBox();
+            notes_box->Multiline = true;
+            notes_box->Location = Point(10, 430);
+            notes_box->Size = System::Drawing::Size(410, 100);
+            notes_box->Text = element_ref->notes;
+            this->Controls->Add(notes_box);
+
+            // Save Button
+            save_button = gcnew Button();
+            save_button->Text = "Save Changes";
+            save_button->Location = Point(150, 540);
+            save_button->Size = System::Drawing::Size(150, 30);
+            save_button->Click += gcnew EventHandler(this, &NodePropertiesEditor::SaveChanges);
+            this->Controls->Add(save_button);
+        }
+
+        void InitializeProperties() {
+            property_grid->SelectedObject = element_ref;
+        }
+
+        void SaveChanges(Object^ sender, EventArgs^ e) {
+            element_ref->notes = notes_box->Text;
+            this->DialogResult = Windows::Forms::DialogResult::OK;
+            this->Close();
+        }
+    };
+}
+
+// MainForm.h (основной код с улучшениями)
+#pragma once
+#include "GraphElement.h"
+#include "GraphNode.h"
+#include "GraphEdge.h"
+#include "NodePropertiesEditor.h"
+
+using namespace System;
+using namespace System::Drawing;
+using namespace System::Windows::Forms;
+using namespace System::Collections::Generic;
+
+namespace MaltegoClone {
+    public ref class MainForm : public Form {
+    public:
+        MainForm() {
+            InitializeComponent();
+            InitializeToolbox();
+            InitializeDarkTheme();
+            InitializeContextMenu();
+            InitializeFullScreen();
+
+            graph_elements = gcnew List<GraphElement^>();
+            edges = gcnew List<GraphEdge^>();
+            node_id_counter = 1;
+        }
+
+    private:
+        // UI Controls
+        Panel^ graph_panel;
+        ListBox^ toolbox;
+        Button^ toggleFullScreenBtn;
+        ContextMenuStrip^ node_context_menu;
+        
+        // Graph data
+        List<GraphElement^>^ graph_elements;
+        List<GraphEdge^>^ edges;
+        int node_id_counter;
+        
+        // Full screen
+        bool isFullScreen = false;
+        FormWindowState previousWindowState;
+        Size previousSize;
+        Point previousLocation;
+
+        void InitializeComponent() {
+            // Main form setup
+            this->Text = "Advanced Maltego Clone";
+            this->Size = System::Drawing::Size(1200, 800);
+            this->StartPosition = FormStartPosition::CenterScreen;
+            this->KeyPreview = true;
+            this->KeyDown += gcnew KeyEventHandler(this, &MainForm::MainForm_KeyDown);
+
+            // Toolbox
+            toolbox = gcnew ListBox();
+            toolbox->SelectionMode = SelectionMode::One;
+            toolbox->Size = System::Drawing::Size(200, 400);
+            toolbox->Location = Point(10, 50);
+            toolbox->MouseDown += gcnew MouseEventHandler(this, &MainForm::ToolboxMouseDown);
+            this->Controls->Add(toolbox);
+
+            // Graph panel
+            graph_panel = gcnew Panel();
+            graph_panel->Location = Point(220, 50);
+            graph_panel->Size = System::Drawing::Size(950, 700);
+            graph_panel->BackColor = Color::White;
+            graph_panel->BorderStyle = BorderStyle::FixedSingle;
+            graph_panel->MouseDown += gcnew MouseEventHandler(this, &MainForm::GraphPanelMouseDown);
+            graph_panel->MouseMove += gcnew MouseEventHandler(this, &MainForm::GraphPanelMouseMove);
+            graph_panel->MouseUp += gcnew MouseEventHandler(this, &MainForm::GraphPanelMouseUp);
+            graph_panel->Paint += gcnew PaintEventHandler(this, &MainForm::GraphPanelPaint);
+            graph_panel->DoubleClick += gcnew EventHandler(this, &MainForm::GraphPanelDoubleClick);
+            this->Controls->Add(graph_panel);
+
+            // Full screen button
+            toggleFullScreenBtn = gcnew Button();
+            toggleFullScreenBtn->Text = "Full Screen (F11)";
+            toggleFullScreenBtn->Location = Point(10, 10);
+            toggleFullScreenBtn->Click += gcnew EventHandler(this, &MainForm::ToggleFullScreen);
+            this->Controls->Add(toggleFullScreenBtn);
+        }
+
+        void InitializeFullScreen() {
+            this->WindowState = FormWindowState::Maximized;
+            this->FormBorderStyle = FormBorderStyle::Sizable;
+        }
+
+        void ToggleFullScreen(Object^ sender, EventArgs^ e) {
+            if (isFullScreen) {
+                // Exit full screen
+                this->FormBorderStyle = FormBorderStyle::Sizable;
+                this->WindowState = previousWindowState;
+                this->Size = previousSize;
+                this->Location = previousLocation;
+            } else {
+                // Enter full screen
+                previousWindowState = this->WindowState;
+                previousSize = this->Size;
+                previousLocation = this->Location;
+                
+                this->FormBorderStyle = FormBorderStyle::None;
+                this->WindowState = FormWindowState::Maximized;
+            }
+            isFullScreen = !isFullScreen;
+            AdjustLayoutForFullScreen();
+        }
+
+        void AdjustLayoutForFullScreen() {
+            if (isFullScreen) {
+                graph_panel->Dock = DockStyle::Fill;
+                toolbox->Visible = false;
+                toggleFullScreenBtn->Text = "Exit Full Screen (F11)";
+            } else {
+                graph_panel->Dock = DockStyle::None;
+                graph_panel->Location = Point(220, 50);
+                graph_panel->Size = System::Drawing::Size(950, 700);
+                toolbox->Visible = true;
+                toggleFullScreenBtn->Text = "Full Screen (F11)";
+            }
+        }
+
+        void MainForm_KeyDown(Object^ sender, KeyEventArgs^ e) {
+            if (e->KeyCode == Keys::F11) {
+                ToggleFullScreen(sender, e);
+            }
+        }
+
+        // ... остальные методы (инициализация, обработчики событий и т.д.) ...
+    };
+}
+
+// PropertyEditor.h (для редактирования свойств)
+#pragma once
+
+using namespace System;
+using namespace System::Windows::Forms;
+
+namespace MaltegoClone {
+    public ref class PropertyEditor : public Form {
+    public:
+        property String^ PropertyName { String^ get() { return nameBox->Text; } }
+        property String^ PropertyValue { String^ get() { return valueBox->Text; } }
+
+        PropertyEditor() {
+            InitializeComponent();
+        }
+
+    private:
+        TextBox^ nameBox;
+        TextBox^ valueBox;
+
+        void InitializeComponent() {
+            this->Text = "Edit Property";
+            this->Size = System::Drawing::Size(300, 150);
+            this->FormBorderStyle = FormBorderStyle::FixedDialog;
+            this->StartPosition = FormStartPosition::CenterParent;
+
+            // Name label and textbox
+            Label^ nameLabel = gcnew Label();
+            nameLabel->Text = "Name:";
+            nameLabel->Location = Point(10, 10);
+            this->Controls->Add(nameLabel);
+
+            nameBox = gcnew TextBox();
+            nameBox->Location = Point(80, 10);
+            nameBox->Size = System::Drawing::Size(200, 20);
+            this->Controls->Add(nameBox);
+
+            // Value label and textbox
+            Label^ valueLabel = gcnew Label();
+            valueLabel->Text = "Value:";
+            valueLabel->Location = Point(10, 40);
+            this->Controls->Add(valueLabel);
+
+            valueBox = gcnew TextBox();
+            valueBox->Location = Point(80, 40);
+            valueBox->Size = System::Drawing::Size(200, 20);
+            this->Controls->Add(valueBox);
+
+            // OK and Cancel buttons
+            Button^ okButton = gcnew Button();
+            okButton->Text = "OK";
+            okButton->Location = Point(50, 80);
+            okButton->DialogResult = Windows::Forms::DialogResult::OK;
+            this->Controls->Add(okButton);
+
+            Button^ cancelButton = gcnew Button();
+            cancelButton->Text = "Cancel";
+            cancelButton->Location = Point(150, 80);
+            cancelButton->DialogResult = Windows::Forms::DialogResult::Cancel;
+            this->Controls->Add(cancelButton);
+
+            this->AcceptButton = okButton;
+            this->CancelButton = cancelButton;
+        }
+    };
+}
+
+// WinMain (точка входа)
+[STAThread]
+int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {
+    Application::EnableVisualStyles();
+    Application::SetCompatibleTextRenderingDefault(false);
+    Application::Run(gcnew MaltegoClone::MainForm());
+    return 0;
+}
