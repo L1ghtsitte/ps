@@ -1,115 +1,196 @@
-// GraphNode.h
+// NodePropertiesEditor.h
 #pragma once
 #include "GraphElement.h"
-#include "NodePropertiesEditor.h"
+#include "PropertyEditor.h"
 
 using namespace System;
-using namespace System::Drawing;
 using namespace System::Windows::Forms;
+using namespace System::Drawing;
+using namespace System::Collections::Generic;
 
 namespace MaltegoClone {
-    public ref class GraphNode : public GraphElement {
+    public ref class NodePropertiesEditor : public Form {
     public:
-        event EventHandler^ NodeChanged;
-        event EventHandler^ NodeDeleted;
-
-        GraphNode() {
-            this->Editable = true;
-            this->size = Size(150, 50);
-            this->is_expanded = false;
+        property String^ NodeText {
+            String^ get() { return element_ref->text; }
+            void set(String^ value) { element_ref->text = value; }
         }
 
-    public:
-        bool HandleClick(Point clickPoint) {
-            return false;
+        NodePropertiesEditor(GraphElement^ element) {
+            element_ref = element;
+            InitializeComponent();
+            InitializeProperties();
         }
 
-        virtual void Draw(Graphics^ g) override {
-            // Draw shadow
-            System::Drawing::Rectangle shadowRect = System::Drawing::Rectangle(location.X + 3, location.Y + 3, size.Width, size.Height);
-            SolidBrush^ shadowBrush = gcnew SolidBrush(Color::FromArgb(30, 0, 0, 0));
-            g->FillRectangle(shadowBrush, shadowRect);
-            delete shadowBrush;
-
-            // Draw main rectangle with gradient
-            System::Drawing::Rectangle bounds = this->Bounds;
-            LinearGradientBrush^ brush = gcnew LinearGradientBrush(
-                bounds,
-                Color::FromArgb(color.R, color.G, color.B),
-                Color::FromArgb(color.R - 20, color.G - 20, color.B - 20),
-                45.0f);
-
-            Pen^ pen = gcnew Pen(Color::FromArgb(100, 100, 100), 1.5f);
-            g->FillRectangle(brush, bounds);
-            g->DrawRectangle(pen, bounds);
-            delete brush;
-            delete pen;
-
-            // Draw resize handle if selected
-            if (is_resizing) {
-                SolidBrush^ handleBrush = gcnew SolidBrush(Color::FromArgb(200, 200, 200));
-                g->FillEllipse(handleBrush, ResizeHandle);
-                delete handleBrush;
-            }
-
-            // Draw title with text shadow
-            System::Drawing::Font^ font = gcnew System::Drawing::Font("Segoe UI", 9, FontStyle::Bold);
-            RectangleF textRect = RectangleF(location.X, location.Y, size.Width, size.Height);
-            StringFormat^ format = gcnew StringFormat();
-            format->Alignment = StringAlignment::Center;
-            format->LineAlignment = StringAlignment::Center;
-
-            // Text shadow
-            textRect.Offset(1, 1);
-            g->DrawString(text, font, Brushes::Black, textRect, format);
-
-            // Main text
-            textRect.Offset(-1, -1);
-            g->DrawString(text, font, Brushes::White, textRect, format);
-            delete font;
-            delete format;
+        property bool ChangesMade {
+            bool get() { return changesMade; }
         }
-
-        void BeginEditTitle(Control^ parent) {
-            if (!Editable) return;
-
-            TextBox^ editBox = gcnew TextBox();
-            editBox->Text = this->text;
-            editBox->Bounds = System::Drawing::Rectangle(location.X, location.Y, size.Width, size.Height);
-            editBox->Font = gcnew System::Drawing::Font("Segoe UI", 9, FontStyle::Bold);
-            editBox->TextAlign = HorizontalAlignment::Center;
-            editBox->Tag = this;
-
-            editBox->KeyDown += gcnew KeyEventHandler(this, &GraphNode::EditBox_KeyDown);
-            editBox->LostFocus += gcnew EventHandler(this, &GraphNode::EditBox_LostFocus);
-
-            parent->Controls->Add(editBox);
-            editBox->Focus();
-        }
-
-        void OpenEditor(Form^ parentForm) {
-            NodePropertiesEditor^ editor = gcnew NodePropertiesEditor(this);
-            if (editor->ShowDialog(parentForm) == Windows::Forms::DialogResult::OK) {
-                NodeChanged(this, EventArgs::Empty);
-            }
-        }
-
-        property bool Editable;
 
     private:
-        void EditBox_KeyDown(Object^ sender, KeyEventArgs^ e) {
-            if (e->KeyCode == Keys::Enter)
-                CompleteEditing((TextBox^)sender);
+        GraphElement^ element_ref;
+        PropertyGrid^ property_grid;
+        TextBox^ notes_box;
+        Button^ save_button;
+        Button^ cancel_button;
+        Button^ delete_button;
+        bool changesMade;
+
+        void InitializeComponent() {
+            changesMade = false;
+            this->Text = "Edit Node Properties - " + element_ref->text;
+            this->Size = System::Drawing::Size(500, 600);
+            this->FormBorderStyle = Windows::Forms::FormBorderStyle::FixedDialog;
+            this->StartPosition = FormStartPosition::CenterParent;
+            this->BackColor = Color::FromArgb(45, 45, 48);
+            this->ForeColor = Color::FromArgb(240, 240, 240);
+
+            // Property Grid
+            property_grid = gcnew PropertyGrid();
+            property_grid->Location = Point(10, 10);
+            property_grid->Size = System::Drawing::Size(460, 250);
+            property_grid->ToolbarVisible = false;
+            property_grid->HelpVisible = false;
+            property_grid->BackColor = Color::FromArgb(60, 60, 65);
+            property_grid->ForeColor = Color::FromArgb(240, 240, 240);
+            property_grid->ViewBackColor = Color::FromArgb(60, 60, 65);
+            property_grid->ViewForeColor = Color::FromArgb(240, 240, 240);
+            property_grid->PropertyValueChanged += gcnew PropertyValueChangedEventHandler(this, &NodePropertiesEditor::PropertyGrid_PropertyValueChanged);
+            this->Controls->Add(property_grid);
+
+            // Notes
+            Label^ notesLabel = gcnew Label();
+            notesLabel->Text = "Notes:";
+            notesLabel->Location = Point(10, 270);
+            notesLabel->ForeColor = Color::FromArgb(240, 240, 240);
+            this->Controls->Add(notesLabel);
+
+            notes_box = gcnew TextBox();
+            notes_box->Multiline = true;
+            notes_box->Location = Point(10, 290);
+            notes_box->Size = System::Drawing::Size(460, 150);
+            notes_box->Text = element_ref->notes;
+            notes_box->BackColor = Color::FromArgb(60, 60, 65);
+            notes_box->ForeColor = Color::FromArgb(240, 240, 240);
+            notes_box->BorderStyle = BorderStyle::FixedSingle;
+            this->Controls->Add(notes_box);
+
+            // Delete Button
+            delete_button = gcnew Button();
+            delete_button->Text = "Delete Node";
+            delete_button->Location = Point(10, 450);
+            delete_button->Size = System::Drawing::Size(120, 30);
+            delete_button->BackColor = Color::FromArgb(90, 50, 50);
+            delete_button->ForeColor = Color::FromArgb(240, 240, 240);
+            delete_button->FlatStyle = FlatStyle::Flat;
+            delete_button->FlatAppearance->BorderColor = Color::FromArgb(120, 70, 70);
+            delete_button->FlatAppearance->MouseOverBackColor = Color::FromArgb(110, 60, 60);
+            delete_button->Click += gcnew EventHandler(this, &NodePropertiesEditor::DeleteNode);
+            this->Controls->Add(delete_button);
+
+            // Cancel Button
+            cancel_button = gcnew Button();
+            cancel_button->Text = "Cancel";
+            cancel_button->Location = Point(250, 450);
+            cancel_button->Size = System::Drawing::Size(100, 30);
+            cancel_button->BackColor = Color::FromArgb(70, 70, 75);
+            cancel_button->ForeColor = Color::FromArgb(240, 240, 240);
+            cancel_button->FlatStyle = FlatStyle::Flat;
+            cancel_button->FlatAppearance->BorderColor = Color::FromArgb(90, 90, 100);
+            cancel_button->FlatAppearance->MouseOverBackColor = Color::FromArgb(80, 80, 85);
+            cancel_button->Click += gcnew EventHandler(this, &NodePropertiesEditor::CancelChanges);
+            this->Controls->Add(cancel_button);
+
+            // Save Button
+            save_button = gcnew Button();
+            save_button->Text = "Save";
+            save_button->Location = Point(360, 450);
+            save_button->Size = System::Drawing::Size(100, 30);
+            save_button->BackColor = Color::FromArgb(70, 70, 75);
+            save_button->ForeColor = Color::FromArgb(240, 240, 240);
+            save_button->FlatStyle = FlatStyle::Flat;
+            save_button->FlatAppearance->BorderColor = Color::FromArgb(90, 90, 100);
+            save_button->FlatAppearance->MouseOverBackColor = Color::FromArgb(80, 80, 85);
+            save_button->Click += gcnew EventHandler(this, &NodePropertiesEditor::SaveChanges);
+            this->Controls->Add(save_button);
         }
 
-        void EditBox_LostFocus(Object^ sender, EventArgs^ e) {
-            CompleteEditing((TextBox^)sender);
+        void InitializeProperties() {
+            // Create a wrapper object for property grid
+            Object^ propsObj = gcnew DynamicProperties(element_ref);
+            property_grid->SelectedObject = propsObj;
         }
 
-        void CompleteEditing(TextBox^ editBox) {
-            this->text = editBox->Text;
-            editBox->Parent->Controls->Remove(editBox);
-            NodeChanged(this, EventArgs::Empty);
+        void PropertyGrid_PropertyValueChanged(Object^ sender, PropertyValueChangedEventArgs^ e) {
+            changesMade = true;
         }
+
+        void SaveChanges(Object^ sender, EventArgs^ e) {
+            element_ref->notes = notes_box->Text;
+            changesMade = true;
+            this->DialogResult = Windows::Forms::DialogResult::OK;
+            this->Close();
+        }
+
+        void CancelChanges(Object^ sender, EventArgs^ e) {
+            this->DialogResult = Windows::Forms::DialogResult::Cancel;
+            this->Close();
+        }
+
+        void DeleteNode(Object^ sender, EventArgs^ e) {
+            if (MessageBox::Show("Are you sure you want to delete this node and all its connections?",
+                "Confirm Delete",
+                MessageBoxButtons::YesNo,
+                MessageBoxIcon::Warning) == Windows::Forms::DialogResult::Yes) {
+                changesMade = true;
+                this->DialogResult = Windows::Forms::DialogResult::Abort;
+                this->Close();
+            }
+        }
+
+        // Wrapper class for property grid
+        ref class DynamicProperties {
+        private:
+            GraphElement^ element;
+
+        public:
+            DynamicProperties(GraphElement^ element) : element(element) {}
+
+            property String^ Text {
+                String^ get() { return element->text; }
+                void set(String^ value) { element->text = value; }
+            }
+
+            property Color NodeColor {
+                Color get() { return element->color; }
+                void set(Color value) { element->color = value; }
+            }
+
+            property bool IsExpanded {
+                bool get() { return element->is_expanded; }
+                void set(bool value) { element->is_expanded = value; }
+            }
+
+            property String^ FirstName {
+                String^ get() {
+                    if (element->properties->ContainsKey("First Name"))
+                        return element->properties["First Name"];
+                    return String::Empty;
+                }
+                void set(String^ value) {
+                    element->properties["First Name"] = value;
+                }
+            }
+
+            property String^ LastName {
+                String^ get() {
+                    if (element->properties->ContainsKey("Last Name"))
+                        return element->properties["Last Name"];
+                    return String::Empty;
+                }
+                void set(String^ value) {
+                    element->properties["Last Name"] = value;
+                }
+            }
+        };
     };
 }
