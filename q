@@ -2,13 +2,10 @@
 #pragma once
 #include "GraphElement.h"
 #include "NodePropertiesEditor.h"
-#include <windows.h> // Добавляем для GDI+
-#include <gdiplus.h> // Добавляем для LinearGradientBrush
 
 using namespace System;
 using namespace System::Drawing;
 using namespace System::Windows::Forms;
-using namespace Gdiplus; // Добавляем пространство имен GDI+
 
 namespace MaltegoClone {
     public ref class GraphNode : public GraphElement {
@@ -30,17 +27,11 @@ namespace MaltegoClone {
             g->FillRectangle(shadowBrush, shadowRect);
             delete shadowBrush;
 
-            // Draw main rectangle with gradient
-            System::Drawing::Rectangle bounds = this->Bounds;
-            Gdiplus::LinearGradientBrush* brush = new Gdiplus::LinearGradientBrush(
-                Gdiplus::Rect(bounds.X, bounds.Y, bounds.Width, bounds.Height),
-                Gdiplus::Color(color.R, color.G, color.B),
-                Gdiplus::Color(color.R - 20, color.G - 20, color.B - 20),
-                Gdiplus::LinearGradientModeForwardDiagonal);
-
+            // Draw main rectangle with solid color (замена градиенту)
+            SolidBrush^ brush = gcnew SolidBrush(color);
             Pen^ pen = gcnew Pen(Color::FromArgb(100, 100, 100), 1.5f);
-            g->FillRectangle(gcnew SolidBrush(brush), bounds);
-            g->DrawRectangle(pen, bounds);
+            g->FillRectangle(brush, Bounds);
+            g->DrawRectangle(pen, Bounds);
             delete brush;
             delete pen;
 
@@ -69,6 +60,46 @@ namespace MaltegoClone {
             delete format;
         }
 
-        // ... остальные методы класса ...
+        void BeginEditTitle(Control^ parent) {
+            if (!Editable) return;
+
+            TextBox^ editBox = gcnew TextBox();
+            editBox->Text = this->text;
+            editBox->Bounds = System::Drawing::Rectangle(location.X, location.Y, size.Width, size.Height);
+            editBox->Font = gcnew System::Drawing::Font("Segoe UI", 9, FontStyle::Bold);
+            editBox->TextAlign = HorizontalAlignment::Center;
+            editBox->Tag = this;
+
+            editBox->KeyDown += gcnew KeyEventHandler(this, &GraphNode::EditBox_KeyDown);
+            editBox->LostFocus += gcnew EventHandler(this, &GraphNode::EditBox_LostFocus);
+
+            parent->Controls->Add(editBox);
+            editBox->Focus();
+        }
+
+        void OpenEditor(Form^ parentForm) {
+            NodePropertiesEditor^ editor = gcnew NodePropertiesEditor(this);
+            if (editor->ShowDialog(parentForm) == Windows::Forms::DialogResult::OK) {
+                NodeChanged(this, EventArgs::Empty);
+            }
+        }
+
+        property bool Editable;
+
+    private:
+        void EditBox_KeyDown(Object^ sender, KeyEventArgs^ e) {
+            if (e->KeyCode == Keys::Enter)
+                CompleteEditing((TextBox^)sender);
+        }
+
+        void EditBox_LostFocus(Object^ sender, EventArgs^ e) {
+            CompleteEditing((TextBox^)sender);
+        }
+
+        void CompleteEditing(TextBox^ editBox) {
+            this->text = editBox->Text;
+            editBox->Parent->Controls->Remove(editBox);
+            NodeChanged(this, EventArgs::Empty);
+        }
     };
 }
