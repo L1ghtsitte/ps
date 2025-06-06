@@ -1,66 +1,83 @@
-// GraphElement.h
-#pragma once
-#include <map>
-#include <string>
-#include <msclr/marshal_cppstd.h>
+void InitializeComponent(void) {
+    this->components = gcnew System::ComponentModel::Container();
 
-using namespace System;
-using namespace System::Drawing;
-using namespace System::IO; // Добавляем для Path, Directory, File
-using namespace System::Windows::Forms; // Добавляем для Application
-using namespace System::Collections::Generic;
-using namespace msclr::interop;
+    // 1. Инициализация всех элементов управления
+    this->menu_strip = gcnew MenuStrip();
+    this->file_menu = gcnew ToolStripMenuItem("File");
+    this->save_menu = gcnew ToolStripMenuItem("Save Graph");
+    this->load_menu = gcnew ToolStripMenuItem("Load Graph");
+    this->status_strip = gcnew StatusStrip();
+    this->status_label = gcnew ToolStripStatusLabel("Ready");
+    this->toolbox = gcnew ListBox();
+    this->custom_element_name = gcnew TextBox();
+    this->add_custom_element_button = gcnew Button();
+    this->edge_mode_button = gcnew Button();
+    this->graph_panel = gcnew Panel();  // Теперь graph_panel создан
+    this->h_scroll = gcnew HScrollBar();
+    this->v_scroll = gcnew VScrollBar();
 
-namespace MaltegoClone {
-    public enum class ElementType {
-        Person, Organization, Website, IPAddress, Email,
-        Document, SocialNetwork, School, Address, PhoneNumber,
-        Telegram, VK, Facebook, Twitter, Instagram, Custom
-    };
+    // 2. Настройка свойств элементов
+    this->Text = "Advanced Maltego Clone";
+    this->Size = System::Drawing::Size(1200, 800);
+    this->StartPosition = FormStartPosition::CenterScreen;
+    this->KeyPreview = true;
 
-    public ref class GraphElement {
-    public:
-        // ... остальные члены класса остаются без изменений ...
+    // Настройка toolbox
+    this->toolbox->SelectionMode = SelectionMode::One;
+    this->toolbox->Size = System::Drawing::Size(200, 400);
+    this->toolbox->Location = Point(10, 50);
 
-        void SaveToFile() {
-            String^ directory = Path::Combine(Application::StartupPath, text);
-            Directory::CreateDirectory(directory);
+    // Настройка кнопок и полей ввода
+    this->custom_element_name->Location = Point(10, 460);
+    this->custom_element_name->Size = System::Drawing::Size(180, 20);
 
-            String^ filename = Path::Combine(directory, type.ToString() + ".txt");
+    this->add_custom_element_button->Text = "Add Custom Type";
+    this->add_custom_element_button->Location = Point(10, 490);
+    this->add_custom_element_button->Size = System::Drawing::Size(180, 25);
 
-            StreamWriter^ writer = gcnew StreamWriter(filename);
-            writer->WriteLine("ID: " + id);
-            writer->WriteLine("Type: " + type.ToString());
-            writer->WriteLine("Text: " + text);
-            writer->WriteLine("Location: " + location.X + "," + location.Y);
-            writer->WriteLine("Size: " + size.Width + "," + size.Height);
-            writer->WriteLine("Color: " + color.ToArgb());
+    this->edge_mode_button->Text = "Edge Mode (Off)";
+    this->edge_mode_button->Location = Point(10, 525);
+    this->edge_mode_button->Size = System::Drawing::Size(180, 25);
 
-            writer->WriteLine("Properties:");
-            for each(KeyValuePair<String^, String^> pair in properties) {
-                writer->WriteLine(pair.Key + ": " + pair.Value);
-            }
+    // Настройка graph_panel и скроллбаров
+    this->graph_panel->Location = Point(220, 50);
+    this->graph_panel->Size = System::Drawing::Size(950, 700);
+    this->graph_panel->AutoScroll = false;
+    this->graph_panel->BorderStyle = BorderStyle::FixedSingle;
 
-            writer->WriteLine("Notes:");
-            writer->WriteLine(notes);
+    this->h_scroll->Dock = DockStyle::Bottom;
+    this->v_scroll->Dock = DockStyle::Right;
 
-            writer->Close();
-        }
+    // 3. Добавление обработчиков событий (теперь graph_panel не null)
+    this->KeyDown += gcnew KeyEventHandler(this, &MainForm::MainForm_KeyDown);
+    this->toolbox->MouseDown += gcnew MouseEventHandler(this, &MainForm::ToolboxMouseDown);
+    this->graph_panel->MouseDown += gcnew MouseEventHandler(this, &MainForm::GraphPanelMouseDown);
+    this->graph_panel->MouseMove += gcnew MouseEventHandler(this, &MainForm::GraphPanelMouseMove);
+    this->graph_panel->MouseUp += gcnew MouseEventHandler(this, &MainForm::GraphPanelMouseUp);
+    this->graph_panel->Paint += gcnew PaintEventHandler(this, &MainForm::GraphPanelPaint);
+    this->graph_panel->DoubleClick += gcnew EventHandler(this, &MainForm::GraphPanelDoubleClick);
+    this->graph_panel->MouseWheel += gcnew MouseEventHandler(this, &MainForm::GraphPanelMouseWheel);
 
-        void LoadFromFile() {
-            String^ directory = Path::Combine(Application::StartupPath, text);
-            String^ filename = Path::Combine(directory, type.ToString() + ".txt");
+    this->add_custom_element_button->Click += gcnew EventHandler(this, &MainForm::AddCustomElementClick);
+    this->edge_mode_button->Click += gcnew EventHandler(this, &MainForm::EdgeModeButtonClick);
 
-            if (!File::Exists(filename)) return;
+    // Настройка скроллбаров
+    h_scroll->Scroll += gcnew ScrollEventHandler(this, &MainForm::OnScroll);
+    v_scroll->Scroll += gcnew ScrollEventHandler(this, &MainForm::OnScroll);
 
-            StreamReader^ reader = gcnew StreamReader(filename);
-            String^ line;
+    // 4. Добавление элементов в контейнеры
+    this->graph_panel->Controls->Add(this->h_scroll);
+    this->graph_panel->Controls->Add(this->v_scroll);
+    this->status_strip->Items->Add(this->status_label);
 
-            while ((line = reader->ReadLine()) != nullptr) {
-                // ... остальная часть метода без изменений ...
-            }
+    // 5. Добавление элементов на форму
+    this->Controls->Add(this->menu_strip);
+    this->Controls->Add(this->status_strip);
+    this->Controls->Add(this->toolbox);
+    this->Controls->Add(this->custom_element_name);
+    this->Controls->Add(this->add_custom_element_button);
+    this->Controls->Add(this->edge_mode_button);
+    this->Controls->Add(this->graph_panel);
 
-            reader->Close();
-        }
-    };
+    this->MainMenuStrip = this->menu_strip;
 }
