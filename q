@@ -1,153 +1,94 @@
-// GraphElement.h
+// GraphEdge.h
 #pragma once
-#include <map>
-#include <string>
-#include <msclr/marshal_cppstd.h>
+#include "GraphElement.h"
 
 using namespace System;
 using namespace System::Drawing;
-using namespace System::IO; // Добавлено для работы с файлами
-using namespace System::Collections::Generic;
-using namespace msclr::interop;
 
 namespace MaltegoClone {
-    public enum class ElementType {
-        Person, Organization, Website, IPAddress, Email,
-        Document, SocialNetwork, School, Address, PhoneNumber,
-        Telegram, VK, Facebook, Twitter, Instagram, Custom
-    };
-
-    public ref class GraphElement {
+    public ref class GraphEdge {
     public:
-        int id;
-        ElementType type;
-        String^ text;
-        Point location;
-        Size size;
+        GraphElement^ source;
+        GraphElement^ target;
+        PointF start_point;
+        PointF end_point;
         Color color;
-        Dictionary<String^, String^>^ properties;
-        bool is_expanded;
-        String^ notes;
-        bool is_resizing;
-        bool is_dragging;
-        Point resize_start;
-        Size original_size;
+        float width;
 
-        GraphElement() {
-            properties = gcnew Dictionary<String^, String^>();
-            is_expanded = false;
-            notes = String::Empty;
-            color = Color::FromArgb(60, 60, 65);
-            size = Size(150, 50);
-            is_resizing = false;
-            is_dragging = false;
+        GraphEdge() {
+            color = Color::FromArgb(120, 120, 120);
+            width = 2.0f;
         }
 
-        property System::Drawing::Rectangle Bounds { // Изменено имя и добавлено полное квалифицированное имя
-            System::Drawing::Rectangle get() { return System::Drawing::Rectangle(location, size); }
-        }
-
-        property System::Drawing::Rectangle ResizeHandle {
-            System::Drawing::Rectangle get() {
-                return System::Drawing::Rectangle(location.X + size.Width - 10,
-                                   location.Y + size.Height - 10,
-                                   10, 10);
+        void UpdateConnectionPoints() {
+            if (source != nullptr && target != nullptr) {
+                start_point = GetConnectionPoint(source, PointF(target->location.X, target->location.Y));
+                end_point = GetConnectionPoint(target, PointF(source->location.X, source->location.Y));
             }
         }
 
-        virtual void Draw(Graphics^ g) = 0;
+        void Draw(Graphics^ g) {
+            UpdateConnectionPoints();
 
-        bool HitTestResizeHandle(Point point) {
-            return ResizeHandle.Contains(point);
+            // Draw line with shadow
+            Pen^ pen = gcnew Pen(Color::FromArgb(50, 0, 0, 0), width + 1);
+            g->DrawLine(pen, start_point.X + 2, start_point.Y + 2, end_point.X + 2, end_point.Y + 2);
+
+            pen = gcnew Pen(color, width);
+            g->DrawLine(pen, start_point, end_point);
+
+            // Draw arrow head
+            DrawArrowHead(g);
         }
 
-        void StartResizing(Point point) {
-            is_resizing = true;
-            resize_start = point;
-            original_size = size;
-        }
+    private:
+        PointF GetConnectionPoint(GraphElement^ element, PointF reference_point) {
+            System::Drawing::Rectangle bounds = element->Bounds;
+            PointF center = PointF(bounds.X + bounds.Width / 2, bounds.Y + bounds.Height / 2);
 
-        void Resize(Point point) {
-            if (!is_resizing) return;
+            float dx = reference_point.X - center.X;
+            float dy = reference_point.Y - center.Y;
+            float distance = (float)Math::Sqrt(dx * dx + dy * dy);
 
-            int deltaX = point.X - resize_start.X;
-            int deltaY = point.Y - resize_start.Y;
-
-            size = Size(
-                Math::Max(100, original_size.Width + deltaX),
-                Math::Max(40, original_size.Height + deltaY)
-            );
-        }
-
-        void EndResizing() {
-            is_resizing = false;
-        }
-
-        void SaveToFile() {
-            String^ directory = System::IO::Path::Combine(Application::StartupPath, text);
-            System::IO::Directory::CreateDirectory(directory);
-
-            String^ filename = System::IO::Path::Combine(directory, type.ToString() + ".txt");
-
-            System::IO::StreamWriter^ writer = gcnew System::IO::StreamWriter(filename);
-            writer->WriteLine("ID: " + id);
-            writer->WriteLine("Type: " + type.ToString());
-            writer->WriteLine("Text: " + text);
-            writer->WriteLine("Location: " + location.X + "," + location.Y);
-            writer->WriteLine("Size: " + size.Width + "," + size.Height);
-            writer->WriteLine("Color: " + color.ToArgb());
-
-            writer->WriteLine("Properties:");
-            for each(KeyValuePair<String^, String^> pair in properties) {
-                writer->WriteLine(pair.Key + ": " + pair.Value);
+            if (distance > 0) {
+                dx /= distance;
+                dy /= distance;
             }
 
-            writer->WriteLine("Notes:");
-            writer->WriteLine(notes);
-
-            writer->Close();
+            return PointF(
+                center.X + dx * bounds.Width / 2,
+                center.Y + dy * bounds.Height / 2);
         }
 
-        void LoadFromFile() {
-            String^ directory = System::IO::Path::Combine(Application::StartupPath, text);
-            String^ filename = System::IO::Path::Combine(directory, type.ToString() + ".txt");
+        void DrawArrowHead(Graphics^ g) {
+            float arrow_length = 12.0f;
+            float arrow_width = 5.0f;
 
-            if (!System::IO::File::Exists(filename)) return;
+            float dx = end_point.X - start_point.X;
+            float dy = end_point.Y - start_point.Y;
+            float length = (float)Math::Sqrt(dx * dx + dy * dy);
 
-            System::IO::StreamReader^ reader = gcnew System::IO::StreamReader(filename);
-            String^ line;
-
-            while ((line = reader->ReadLine()) != nullptr) {
-                if (line->StartsWith("ID: ")) {
-                    id = Int32::Parse(line->Substring(4));
-                }
-                else if (line->StartsWith("Location: ")) {
-                    array<String^>^ parts = line->Substring(10)->Split(',');
-                    location = Point(Int32::Parse(parts[0]), Int32::Parse(parts[1]));
-                }
-                else if (line->StartsWith("Size: ")) {
-                    array<String^>^ parts = line->Substring(6)->Split(',');
-                    size = Size(Int32::Parse(parts[0]), Int32::Parse(parts[1]));
-                }
-                else if (line->StartsWith("Color: ")) {
-                    color = Color::FromArgb(Int32::Parse(line->Substring(7)));
-                }
-                else if (line == "Properties:") {
-                    while ((line = reader->ReadLine()) != nullptr && line != "Notes:") {
-                        int colonPos = line->IndexOf(": ");
-                        if (colonPos > 0) {
-                            String^ key = line->Substring(0, colonPos);
-                            String^ value = line->Substring(colonPos + 2);
-                            properties[key] = value;
-                        }
-                    }
-                }
-                else if (line == "Notes:") {
-                    notes = reader->ReadToEnd();
-                }
+            if (length > 0) {
+                dx /= length;
+                dy /= length;
             }
 
-            reader->Close();
+            PointF adjusted_end = PointF(
+                end_point.X - dx * arrow_length * 0.7f,
+                end_point.Y - dy * arrow_length * 0.7f);
+
+            PointF arrow_left = PointF(
+                adjusted_end.X - dy * arrow_width,
+                adjusted_end.Y + dx * arrow_width);
+
+            PointF arrow_right = PointF(
+                adjusted_end.X + dy * arrow_width,
+                adjusted_end.Y - dx * arrow_width);
+
+            array<PointF>^ arrow_points = gcnew array<PointF>{ end_point, arrow_left, arrow_right };
+            SolidBrush^ brush = gcnew SolidBrush(color);
+            g->FillPolygon(brush, arrow_points);
+            delete brush;
         }
     };
 }
