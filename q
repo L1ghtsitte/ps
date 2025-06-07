@@ -1,100 +1,87 @@
-void SaveToHtml(Object^ sender, EventArgs^ e) {
-    SaveFileDialog^ saveDialog = gcnew SaveFileDialog();
-    saveDialog->Filter = "HTML Files|*.html|All Files|*.*";
-    saveDialog->Title = "Сохранить граф в HTML";
+void InitializeComponent(void) {
+    this->components = gcnew System::ComponentModel::Container();
 
-    if (saveDialog->ShowDialog() == Windows::Forms::DialogResult::OK) {
-        try {
-            StreamWriter^ writer = gcnew StreamWriter(saveDialog->FileName);
-            writer->WriteLine("<!DOCTYPE html>");
-            writer->WriteLine("<html><head><title>Граф Maltego</title>");
-            writer->WriteLine("<style>");
-            writer->WriteLine("  .node { position: absolute; border: 1px solid #000; padding: 5px; background: #fff; }");
-            writer->WriteLine("  .edge { position: absolute; height: 2px; background: #000; }");
-            writer->WriteLine("</style></head><body>");
-            
-            // Сохраняем узлы
-            for each(GraphElement^ element in graph_elements) {
-                writer->WriteLine(String::Format(
-                    "<div class=\"node\" style=\"left:{0}px;top:{1}px;width:{2}px;height:{3}px;\">{4}</div>",
-                    element->location.X, element->location.Y,
-                    element->size.Width, element->size.Height,
-                    element->text));
-            }
-            
-            // Сохраняем связи
-            for each(GraphEdge^ edge in edges) {
-                if (edge->source != nullptr && edge->target != nullptr) {
-                    PointF start = GetConnectionPoint(edge->source, edge->target->location);
-                    PointF end = GetConnectionPoint(edge->target, edge->source->location);
-                    
-                    writer->WriteLine(String::Format(
-                        "<div class=\"edge\" style=\"left:{0}px;top:{1}px;width:{2}px;transform:rotate({3}deg);\"></div>",
-                        start.X, start.Y,
-                        Math::Sqrt(Math::Pow(end.X - start.X, 2) + Math::Pow(end.Y - start.Y, 2)),
-                        Math::Atan2(end.Y - start.Y, end.X - start.X) * 180 / Math::PI));
-                }
-            }
-            
-            writer->WriteLine("</body></html>");
-            writer->Close();
-            
-            MessageBox::Show("Граф успешно сохранен в HTML!", "Сохранение завершено",
-                MessageBoxButtons::OK, MessageBoxIcon::Information);
-        }
-        catch (Exception^ ex) {
-            MessageBox::Show("Ошибка сохранения: " + ex->Message, "Ошибка",
-                MessageBoxButtons::OK, MessageBoxIcon::Error);
-        }
-    }
-}
+    // Main form setup
+    this->Text = "Advanced Maltego Clone";
+    this->Size = System::Drawing::Size(1200, 800);
+    this->StartPosition = FormStartPosition::CenterScreen;
+    this->KeyPreview = true;
 
-void LoadFromHtml(Object^ sender, EventArgs^ e) {
-    OpenFileDialog^ openDialog = gcnew OpenFileDialog();
-    openDialog->Filter = "HTML Files|*.html|All Files|*.*";
-    openDialog->Title = "Загрузить граф из HTML";
+    // Initialize controls first
+    this->menu_strip = gcnew MenuStrip();
+    this->file_menu = gcnew ToolStripMenuItem("File");
+    this->save_menu = gcnew ToolStripMenuItem("Save Graph (HTML)");
+    this->load_menu = gcnew ToolStripMenuItem("Load Graph (HTML)");
+    this->status_strip = gcnew StatusStrip();
+    this->status_label = gcnew ToolStripStatusLabel("Ready");
+    this->toolbox = gcnew ListBox();
+    this->custom_element_name = gcnew TextBox();
+    this->add_custom_element_button = gcnew Button();
+    this->edge_mode_button = gcnew Button();
+    this->graph_panel = gcnew Panel();
+    this->h_scroll = gcnew HScrollBar();
+    this->v_scroll = gcnew VScrollBar();
 
-    if (openDialog->ShowDialog() == Windows::Forms::DialogResult::OK) {
-        try {
-            graph_elements->Clear();
-            edges->Clear();
-            
-            String^ html = File::ReadAllText(openDialog->FileName);
-            
-            // Парсинг узлов (упрощенный пример)
-            int pos = 0;
-            while ((pos = html->IndexOf("<div class=\"node\"", pos)) != -1) {
-                int left = ParseHtmlValue(html, "left:", pos);
-                int top = ParseHtmlValue(html, "top:", pos);
-                int width = ParseHtmlValue(html, "width:", pos);
-                int height = ParseHtmlValue(html, "height:", pos);
-                
-                int textStart = html->IndexOf(">", pos) + 1;
-                int textEnd = html->IndexOf("<", textStart);
-                String^ text = html->Substring(textStart, textEnd - textStart);
-                
-                GraphNode^ node = gcnew GraphNode();
-                node->location = Point(left, top);
-                node->size = Size(width, height);
-                node->text = text;
-                graph_elements->Add(node);
-                
-                pos = textEnd;
-            }
-            
-            graph_panel->Invalidate();
-            MessageBox::Show("Граф успешно загружен из HTML!", "Загрузка завершена",
-                MessageBoxButtons::OK, MessageBoxIcon::Information);
-        }
-        catch (Exception^ ex) {
-            MessageBox::Show("Ошибка загрузки: " + ex->Message, "Ошибка",
-                MessageBoxButtons::OK, MessageBoxIcon::Error);
-        }
-    }
-}
+    // Menu setup
+    this->file_menu->DropDownItems->Add(this->save_menu);
+    this->file_menu->DropDownItems->Add(this->load_menu);
+    this->menu_strip->Items->Add(this->file_menu);
 
-int ParseHtmlValue(String^ html, String^ prop, int startPos) {
-    int pos = html->IndexOf(prop, startPos) + prop->Length;
-    int endPos = html->IndexOf("px", pos);
-    return Int32::Parse(html->Substring(pos, endPos - pos));
+    // Set control properties
+    this->toolbox->SelectionMode = SelectionMode::One;
+    this->toolbox->Size = System::Drawing::Size(200, 400);
+    this->toolbox->Location = Point(10, 50);
+
+    this->custom_element_name->Location = Point(10, 460);
+    this->custom_element_name->Size = System::Drawing::Size(180, 20);
+
+    this->add_custom_element_button->Text = "Add Custom Type";
+    this->add_custom_element_button->Location = Point(10, 490);
+    this->add_custom_element_button->Size = System::Drawing::Size(180, 25);
+
+    this->edge_mode_button->Text = "Edge Mode (Off)";
+    this->edge_mode_button->Location = Point(10, 525);
+    this->edge_mode_button->Size = System::Drawing::Size(180, 25);
+
+    this->graph_panel->Location = Point(220, 50);
+    this->graph_panel->Size = System::Drawing::Size(950, 700);
+    this->graph_panel->AutoScroll = false;
+    this->graph_panel->BorderStyle = BorderStyle::FixedSingle;
+
+    this->h_scroll->Dock = DockStyle::Bottom;
+    this->v_scroll->Dock = DockStyle::Right;
+
+    // Add event handlers (after controls are initialized)
+    this->KeyDown += gcnew KeyEventHandler(this, &MainForm::MainForm_KeyDown);
+    this->save_menu->Click += gcnew EventHandler(this, &MainForm::ExportToHtml);
+    this->load_menu->Click += gcnew EventHandler(this, &MainForm::ImportFromHtml);
+    this->toolbox->MouseDown += gcnew MouseEventHandler(this, &MainForm::ToolboxMouseDown);
+    this->graph_panel->MouseDown += gcnew MouseEventHandler(this, &MainForm::GraphPanelMouseDown);
+    this->graph_panel->MouseMove += gcnew MouseEventHandler(this, &MainForm::GraphPanelMouseMove);
+    this->graph_panel->MouseUp += gcnew MouseEventHandler(this, &MainForm::GraphPanelMouseUp);
+    this->graph_panel->Paint += gcnew PaintEventHandler(this, &MainForm::GraphPanelPaint);
+    this->graph_panel->DoubleClick += gcnew EventHandler(this, &MainForm::GraphPanelDoubleClick);
+    this->graph_panel->MouseWheel += gcnew MouseEventHandler(this, &MainForm::GraphPanelMouseWheel);
+    this->add_custom_element_button->Click += gcnew EventHandler(this, &MainForm::AddCustomElementClick);
+    this->edge_mode_button->Click += gcnew EventHandler(this, &MainForm::EdgeModeButtonClick);
+
+    // Scroll bars
+    h_scroll->Scroll += gcnew ScrollEventHandler(this, &MainForm::OnScroll);
+    v_scroll->Scroll += gcnew ScrollEventHandler(this, &MainForm::OnScroll);
+
+    // Add controls to containers
+    this->graph_panel->Controls->Add(this->h_scroll);
+    this->graph_panel->Controls->Add(this->v_scroll);
+    this->status_strip->Items->Add(this->status_label);
+
+    // Add controls to form
+    this->Controls->Add(this->menu_strip);
+    this->Controls->Add(this->status_strip);
+    this->Controls->Add(this->toolbox);
+    this->Controls->Add(this->custom_element_name);
+    this->Controls->Add(this->add_custom_element_button);
+    this->Controls->Add(this->edge_mode_button);
+    this->Controls->Add(this->graph_panel);
+
+    this->MainMenuStrip = this->menu_strip;
 }
