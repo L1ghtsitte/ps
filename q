@@ -1,87 +1,94 @@
-void InitializeComponent(void) {
-    this->components = gcnew System::ComponentModel::Container();
+// GraphEdge.h
+#pragma once
+#include "GraphElement.h"
 
-    // Main form setup
-    this->Text = "Advanced Maltego Clone";
-    this->Size = System::Drawing::Size(1200, 800);
-    this->StartPosition = FormStartPosition::CenterScreen;
-    this->KeyPreview = true;
+using namespace System;
+using namespace System::Drawing;
 
-    // Initialize controls first
-    this->menu_strip = gcnew MenuStrip();
-    this->file_menu = gcnew ToolStripMenuItem("File");
-    this->save_menu = gcnew ToolStripMenuItem("Save Graph (HTML)");
-    this->load_menu = gcnew ToolStripMenuItem("Load Graph (HTML)");
-    this->status_strip = gcnew StatusStrip();
-    this->status_label = gcnew ToolStripStatusLabel("Ready");
-    this->toolbox = gcnew ListBox();
-    this->custom_element_name = gcnew TextBox();
-    this->add_custom_element_button = gcnew Button();
-    this->edge_mode_button = gcnew Button();
-    this->graph_panel = gcnew Panel();
-    this->h_scroll = gcnew HScrollBar();
-    this->v_scroll = gcnew VScrollBar();
+namespace MaltegoClone {
+    public ref class GraphEdge {
+    public:
+        GraphElement^ source;
+        GraphElement^ target;
+        PointF start_point;
+        PointF end_point;
+        Color color;
+        float width;
 
-    // Menu setup
-    this->file_menu->DropDownItems->Add(this->save_menu);
-    this->file_menu->DropDownItems->Add(this->load_menu);
-    this->menu_strip->Items->Add(this->file_menu);
+        GraphEdge() {
+            color = Color::FromArgb(120, 120, 120);
+            width = 2.0f;
+        }
 
-    // Set control properties
-    this->toolbox->SelectionMode = SelectionMode::One;
-    this->toolbox->Size = System::Drawing::Size(200, 400);
-    this->toolbox->Location = Point(10, 50);
+        void Draw(Graphics^ g) {
+            if (source == nullptr || target == nullptr) return;
 
-    this->custom_element_name->Location = Point(10, 460);
-    this->custom_element_name->Size = System::Drawing::Size(180, 20);
+            // Обновляем точки соединения
+            start_point = GetConnectionPoint(source, PointF(target->location.X + target->size.Width/2, 
+                                            target->location.Y + target->size.Height/2));
+            end_point = GetConnectionPoint(target, PointF(source->location.X + source->size.Width/2, 
+                                          source->location.Y + source->size.Height/2));
 
-    this->add_custom_element_button->Text = "Add Custom Type";
-    this->add_custom_element_button->Location = Point(10, 490);
-    this->add_custom_element_button->Size = System::Drawing::Size(180, 25);
+            // Рисуем линию с тенью
+            Pen^ pen = gcnew Pen(Color::FromArgb(50, 0, 0, 0), width + 1);
+            g->DrawLine(pen, start_point.X + 2, start_point.Y + 2, end_point.X + 2, end_point.Y + 2);
 
-    this->edge_mode_button->Text = "Edge Mode (Off)";
-    this->edge_mode_button->Location = Point(10, 525);
-    this->edge_mode_button->Size = System::Drawing::Size(180, 25);
+            pen = gcnew Pen(color, width);
+            g->DrawLine(pen, start_point, end_point);
 
-    this->graph_panel->Location = Point(220, 50);
-    this->graph_panel->Size = System::Drawing::Size(950, 700);
-    this->graph_panel->AutoScroll = false;
-    this->graph_panel->BorderStyle = BorderStyle::FixedSingle;
+            // Рисуем стрелку
+            DrawArrowHead(g);
+            delete pen;
+        }
 
-    this->h_scroll->Dock = DockStyle::Bottom;
-    this->v_scroll->Dock = DockStyle::Right;
+    private:
+        PointF GetConnectionPoint(GraphElement^ element, PointF reference_point) {
+            System::Drawing::Rectangle bounds = element->Bounds;
+            PointF center = PointF(bounds.X + bounds.Width / 2, bounds.Y + bounds.Height / 2);
 
-    // Add event handlers (after controls are initialized)
-    this->KeyDown += gcnew KeyEventHandler(this, &MainForm::MainForm_KeyDown);
-    this->save_menu->Click += gcnew EventHandler(this, &MainForm::ExportToHtml);
-    this->load_menu->Click += gcnew EventHandler(this, &MainForm::ImportFromHtml);
-    this->toolbox->MouseDown += gcnew MouseEventHandler(this, &MainForm::ToolboxMouseDown);
-    this->graph_panel->MouseDown += gcnew MouseEventHandler(this, &MainForm::GraphPanelMouseDown);
-    this->graph_panel->MouseMove += gcnew MouseEventHandler(this, &MainForm::GraphPanelMouseMove);
-    this->graph_panel->MouseUp += gcnew MouseEventHandler(this, &MainForm::GraphPanelMouseUp);
-    this->graph_panel->Paint += gcnew PaintEventHandler(this, &MainForm::GraphPanelPaint);
-    this->graph_panel->DoubleClick += gcnew EventHandler(this, &MainForm::GraphPanelDoubleClick);
-    this->graph_panel->MouseWheel += gcnew MouseEventHandler(this, &MainForm::GraphPanelMouseWheel);
-    this->add_custom_element_button->Click += gcnew EventHandler(this, &MainForm::AddCustomElementClick);
-    this->edge_mode_button->Click += gcnew EventHandler(this, &MainForm::EdgeModeButtonClick);
+            float dx = reference_point.X - center.X;
+            float dy = reference_point.Y - center.Y;
+            float distance = (float)Math::Sqrt(dx * dx + dy * dy);
 
-    // Scroll bars
-    h_scroll->Scroll += gcnew ScrollEventHandler(this, &MainForm::OnScroll);
-    v_scroll->Scroll += gcnew ScrollEventHandler(this, &MainForm::OnScroll);
+            if (distance > 0) {
+                dx /= distance;
+                dy /= distance;
+            }
 
-    // Add controls to containers
-    this->graph_panel->Controls->Add(this->h_scroll);
-    this->graph_panel->Controls->Add(this->v_scroll);
-    this->status_strip->Items->Add(this->status_label);
+            return PointF(
+                center.X + dx * bounds.Width / 2,
+                center.Y + dy * bounds.Height / 2);
+        }
 
-    // Add controls to form
-    this->Controls->Add(this->menu_strip);
-    this->Controls->Add(this->status_strip);
-    this->Controls->Add(this->toolbox);
-    this->Controls->Add(this->custom_element_name);
-    this->Controls->Add(this->add_custom_element_button);
-    this->Controls->Add(this->edge_mode_button);
-    this->Controls->Add(this->graph_panel);
+        void DrawArrowHead(Graphics^ g) {
+            float arrow_length = 12.0f;
+            float arrow_width = 5.0f;
 
-    this->MainMenuStrip = this->menu_strip;
+            float dx = end_point.X - start_point.X;
+            float dy = end_point.Y - start_point.Y;
+            float length = (float)Math::Sqrt(dx * dx + dy * dy);
+
+            if (length > 0) {
+                dx /= length;
+                dy /= length;
+            }
+
+            PointF adjusted_end = PointF(
+                end_point.X - dx * arrow_length * 0.7f,
+                end_point.Y - dy * arrow_length * 0.7f);
+
+            PointF arrow_left = PointF(
+                adjusted_end.X - dy * arrow_width,
+                adjusted_end.Y + dx * arrow_width);
+
+            PointF arrow_right = PointF(
+                adjusted_end.X + dy * arrow_width,
+                adjusted_end.Y - dx * arrow_width);
+
+            array<PointF>^ arrow_points = gcnew array<PointF>{ end_point, arrow_left, arrow_right };
+            SolidBrush^ brush = gcnew SolidBrush(color);
+            g->FillPolygon(brush, arrow_points);
+            delete brush;
+        }
+    };
 }
