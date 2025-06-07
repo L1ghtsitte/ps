@@ -1,94 +1,48 @@
-// GraphEdge.h
-#pragma once
-#include "GraphElement.h"
-
-using namespace System;
-using namespace System::Drawing;
-
-namespace MaltegoClone {
-    public ref class GraphEdge {
-    public:
-        GraphElement^ source;
-        GraphElement^ target;
-        PointF start_point;
-        PointF end_point;
-        Color color;
-        float width;
-
-        GraphEdge() {
-            color = Color::FromArgb(120, 120, 120);
-            width = 2.0f;
-        }
-
-        void Draw(Graphics^ g) {
-            if (source == nullptr || target == nullptr) return;
-
-            // Обновляем точки соединения
-            start_point = GetConnectionPoint(source, PointF(target->location.X + target->size.Width/2, 
-                                            target->location.Y + target->size.Height/2));
-            end_point = GetConnectionPoint(target, PointF(source->location.X + source->size.Width/2, 
-                                          source->location.Y + source->size.Height/2));
-
-            // Рисуем линию с тенью
-            Pen^ pen = gcnew Pen(Color::FromArgb(50, 0, 0, 0), width + 1);
-            g->DrawLine(pen, start_point.X + 2, start_point.Y + 2, end_point.X + 2, end_point.Y + 2);
-
-            pen = gcnew Pen(color, width);
-            g->DrawLine(pen, start_point, end_point);
-
-            // Рисуем стрелку
-            DrawArrowHead(g);
-            delete pen;
-        }
-
-    private:
-        PointF GetConnectionPoint(GraphElement^ element, PointF reference_point) {
-            System::Drawing::Rectangle bounds = element->Bounds;
-            PointF center = PointF(bounds.X + bounds.Width / 2, bounds.Y + bounds.Height / 2);
-
-            float dx = reference_point.X - center.X;
-            float dy = reference_point.Y - center.Y;
-            float distance = (float)Math::Sqrt(dx * dx + dy * dy);
-
-            if (distance > 0) {
-                dx /= distance;
-                dy /= distance;
-            }
-
-            return PointF(
-                center.X + dx * bounds.Width / 2,
-                center.Y + dy * bounds.Height / 2);
-        }
-
-        void DrawArrowHead(Graphics^ g) {
-            float arrow_length = 12.0f;
-            float arrow_width = 5.0f;
-
-            float dx = end_point.X - start_point.X;
-            float dy = end_point.Y - start_point.Y;
-            float length = (float)Math::Sqrt(dx * dx + dy * dy);
-
-            if (length > 0) {
-                dx /= length;
-                dy /= length;
-            }
-
-            PointF adjusted_end = PointF(
-                end_point.X - dx * arrow_length * 0.7f,
-                end_point.Y - dy * arrow_length * 0.7f);
-
-            PointF arrow_left = PointF(
-                adjusted_end.X - dy * arrow_width,
-                adjusted_end.Y + dx * arrow_width);
-
-            PointF arrow_right = PointF(
-                adjusted_end.X + dy * arrow_width,
-                adjusted_end.Y - dx * arrow_width);
-
-            array<PointF>^ arrow_points = gcnew array<PointF>{ end_point, arrow_left, arrow_right };
-            SolidBrush^ brush = gcnew SolidBrush(color);
-            g->FillPolygon(brush, arrow_points);
-            delete brush;
-        }
-    };
-}
+Серьезность	Код	Описание	Проект	Файл	Строка	Состояние подавления	Подробности
+Ошибка (активно)	E0135	класс "MaltegoClone::MainForm" не содержит члена "SaveProject"	MaltegoClone	I:\11-main\MaltegoClone\MaltegoClone\MainForm.h	211		
+Ошибка (активно)	E0135	класс "MaltegoClone::MainForm" не содержит члена "LoadProject"	MaltegoClone	I:\11-main\MaltegoClone\MaltegoClone\MainForm.h	212		
+Ошибка (активно)	E0065	требуется точка с запятой ";"	MaltegoClone	I:\11-main\MaltegoClone\MaltegoClone\MainForm.h	974		
+Ошибка (активно)	E2179	для блока try требуется как минимум один обработчик или одно предложение finally	MaltegoClone	I:\11-main\MaltegoClone\MaltegoClone\MainForm.h	999		
+Ошибка (активно)	E0127	требуется оператор	MaltegoClone	I:\11-main\MaltegoClone\MaltegoClone\MainForm.h	1010		
+Ошибка (активно)	E3295	недопустимое начало объявления элемента	MaltegoClone	I:\11-main\MaltegoClone\MaltegoClone\MainForm.h	1015		
+Ошибка	C2039	"LoadProjectFromFile": не является членом "MaltegoClone::MainForm".	MaltegoClone	I:\11-main\MaltegoClone\MaltegoClone\MainForm.h	282		
+Ошибка	C2065	LoadProjectFromFile: необъявленный идентификатор	MaltegoClone	I:\11-main\MaltegoClone\MaltegoClone\MainForm.h	282		
+Ошибка	C3924	ошибка в аргументе #2 вызова конструктора делегата "System::EventHandler":	MaltegoClone	I:\11-main\MaltegoClone\MaltegoClone\MainForm.h	282		
+Ошибка	C2065	zoomFactor: необъявленный идентификатор	MaltegoClone	I:\11-main\MaltegoClone\MaltegoClone\MainForm.h	623		
+Ошибка	C2661	System::Math::Max: нет перегруженной функции, принимающей 1 аргументов	MaltegoClone	I:\11-main\MaltegoClone\MaltegoClone\MainForm.h	620		
+Ошибка	C2065	zoomFactor: необъявленный идентификатор	MaltegoClone	I:\11-main\MaltegoClone\MaltegoClone\MainForm.h	620		
+Ошибка	C2065	zoomFactor: необъявленный идентификатор	MaltegoClone	I:\11-main\MaltegoClone\MaltegoClone\MainForm.h	620		
+Ошибка	C2065	zoomFactor: необъявленный идентификатор	MaltegoClone	I:\11-main\MaltegoClone\MaltegoClone\MainForm.h	619		
+Ошибка	C2065	zoomFactor: необъявленный идентификатор	MaltegoClone	I:\11-main\MaltegoClone\MaltegoClone\MainForm.h	618		
+Ошибка	C2065	zoomCenter: необъявленный идентификатор	MaltegoClone	I:\11-main\MaltegoClone\MaltegoClone\MainForm.h	628		
+Ошибка	C2065	zoomCenter: необъявленный идентификатор	MaltegoClone	I:\11-main\MaltegoClone\MaltegoClone\MainForm.h	629		
+Ошибка	C2065	zoomFactor: необъявленный идентификатор	MaltegoClone	I:\11-main\MaltegoClone\MaltegoClone\MainForm.h	629		
+Ошибка	C2065	zoomCenter: необъявленный идентификатор	MaltegoClone	I:\11-main\MaltegoClone\MaltegoClone\MainForm.h	630		
+Ошибка	C2065	zoomFactor: необъявленный идентификатор	MaltegoClone	I:\11-main\MaltegoClone\MaltegoClone\MainForm.h	630		
+Ошибка	C2601	SaveProject: недопустимые локальные определения функций	MaltegoClone	I:\11-main\MaltegoClone\MaltegoClone\MainForm.h	985		
+Ошибка	C2601	LoadProject: недопустимые локальные определения функций	MaltegoClone	I:\11-main\MaltegoClone\MaltegoClone\MainForm.h	1018		
+Ошибка	C2601	ExportToHtml: недопустимые локальные определения функций	MaltegoClone	I:\11-main\MaltegoClone\MaltegoClone\MainForm.h	1090		
+Ошибка	C2601	SaveHtmlExport: недопустимые локальные определения функций	MaltegoClone	I:\11-main\MaltegoClone\MaltegoClone\MainForm.h	1106		
+Ошибка	C2601	LoadProjectFromFile: недопустимые локальные определения функций	MaltegoClone	I:\11-main\MaltegoClone\MaltegoClone\MainForm.h	1118		
+Ошибка	C2065	zoomFactor: необъявленный идентификатор	MaltegoClone	I:\11-main\MaltegoClone\MaltegoClone\MainForm.h	1185		
+Ошибка	C2065	graph_elements: необъявленный идентификатор	MaltegoClone	I:\11-main\MaltegoClone\MaltegoClone\MainForm.h	991		
+Ошибка	C2065	zoomFactor: необъявленный идентификатор	MaltegoClone	I:\11-main\MaltegoClone\MaltegoClone\MainForm.h	1186		
+Ошибка	C2065	element: необъявленный идентификатор	MaltegoClone	I:\11-main\MaltegoClone\MaltegoClone\MainForm.h	993		
+Ошибка	C2065	edges: необъявленный идентификатор	MaltegoClone	I:\11-main\MaltegoClone\MaltegoClone\MainForm.h	998		
+Ошибка	C2065	edge: необъявленный идентификатор	MaltegoClone	I:\11-main\MaltegoClone\MaltegoClone\MainForm.h	1000		
+Ошибка	C2065	h_scroll: необъявленный идентификатор	MaltegoClone	I:\11-main\MaltegoClone\MaltegoClone\MainForm.h	1005		
+Ошибка	C2065	v_scroll: необъявленный идентификатор	MaltegoClone	I:\11-main\MaltegoClone\MaltegoClone\MainForm.h	1006		
+Ошибка	C2065	edges: необъявленный идентификатор	MaltegoClone	I:\11-main\MaltegoClone\MaltegoClone\MainForm.h	1056		
+Ошибка	C2065	graph_elements: необъявленный идентификатор	MaltegoClone	I:\11-main\MaltegoClone\MaltegoClone\MainForm.h	1055		
+Ошибка	C2065	node_id_counter: необъявленный идентификатор	MaltegoClone	I:\11-main\MaltegoClone\MaltegoClone\MainForm.h	1063		
+Ошибка	C2065	graph_elements: необъявленный идентификатор	MaltegoClone	I:\11-main\MaltegoClone\MaltegoClone\MainForm.h	1061		
+Ошибка	C2065	node_id_counter: необъявленный идентификатор	MaltegoClone	I:\11-main\MaltegoClone\MaltegoClone\MainForm.h	1063		
+Ошибка	C2065	edges: необъявленный идентификатор	MaltegoClone	I:\11-main\MaltegoClone\MaltegoClone\MainForm.h	1070		
+Ошибка	C2065	h_scroll: необъявленный идентификатор	MaltegoClone	I:\11-main\MaltegoClone\MaltegoClone\MainForm.h	1075		
+Ошибка	C2065	graph_panel: необъявленный идентификатор	MaltegoClone	I:\11-main\MaltegoClone\MaltegoClone\MainForm.h	1078		
+Ошибка	C2065	v_scroll: необъявленный идентификатор	MaltegoClone	I:\11-main\MaltegoClone\MaltegoClone\MainForm.h	1076		
+Ошибка	C3861	LoadProject: идентификатор не найден	MaltegoClone	I:\11-main\MaltegoClone\MaltegoClone\MainForm.h	1124		
+Ошибка	C3861	SaveHtmlExport: идентификатор не найден	MaltegoClone	I:\11-main\MaltegoClone\MaltegoClone\MainForm.h	1102		
+Ошибка	C3861	SaveProject: идентификатор не найден	MaltegoClone	I:\11-main\MaltegoClone\MaltegoClone\MainForm.h	1098		
+Ошибка	C2065	edges: необъявленный идентификатор	MaltegoClone	I:\11-main\MaltegoClone\MaltegoClone\MainForm.h	1080		
+Ошибка	C2065	graph_elements: необъявленный идентификатор	MaltegoClone	I:\11-main\MaltegoClone\MaltegoClone\MainForm.h	1080		
