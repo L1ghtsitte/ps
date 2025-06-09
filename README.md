@@ -285,3 +285,104 @@ namespace MaltegoClone {
 - Автоматическое создание папки при необходимости
 - Простую загрузку и просмотр фото
 - Минимальный интерфейс редактирования (только имя и цвет)
+
+///
+
+Вот исправления для всех указанных ошибок:
+
+1. В `GraphElement.h` добавьте метод `ParseElementType`:
+
+```cpp
+// В класс GraphElement добавьте этот public static метод:
+public:
+    static ElementType ParseElementType(String^ type) {
+        if (type == "Person") return ElementType::Person;
+        if (type == "Organization") return ElementType::Organization;
+        if (type == "Website") return ElementType::Website;
+        if (type == "IP Address") return ElementType::IPAddress;
+        if (type == "Email") return ElementType::Email;
+        if (type == "Document") return ElementType::Document;
+        if (type == "Social Network") return ElementType::SocialNetwork;
+        if (type == "School") return ElementType::School;
+        if (type == "Address") return ElementType::Address;
+        if (type == "Phone Number") return ElementType::PhoneNumber;
+        if (type == "Telegram") return ElementType::Telegram;
+        if (type == "VK") return ElementType::VK;
+        if (type == "Facebook") return ElementType::Facebook;
+        if (type == "Twitter") return ElementType::Twitter;
+        if (type == "Instagram") return ElementType::Instagram;
+        return ElementType::Custom;
+    }
+```
+
+2. В `MainForm.h` исправьте объявление `LoadProject`:
+
+```cpp
+// Измените сигнатуру метода на:
+void LoadProject(Object^ sender, EventArgs^ e) {
+    // ... существующий код ...
+}
+```
+
+3. Исправьте вызовы `SaveToFile()` - они должны принимать параметр `currentProjectName`:
+
+```cpp
+// Везде, где вызывается SaveToFile(), добавьте параметр:
+selected_element->SaveToFile(currentProjectName); // вместо SaveToFile()
+```
+
+4. Удалите дублирующееся объявление `projectDirectory` в `MainForm.h`:
+
+```cpp
+// Удалите эту строку (158 строка примерно):
+String^ projectDirectory; // Удалить, так как уже есть static property
+```
+
+5. Добавьте объявления для пунктов меню в `MainForm.h`:
+
+```cpp
+// В private секции MainForm добавьте:
+ToolStripMenuItem^ new_menu;
+ToolStripMenuItem^ save_as_menu;
+ToolStripMenuItem^ open_menu;
+
+// В InitializeComponent() добавьте инициализацию:
+this->new_menu = gcnew ToolStripMenuItem("New Project");
+this->save_as_menu = gcnew ToolStripMenuItem("Save Project As");
+this->open_menu = gcnew ToolStripMenuItem("Open Project");
+
+this->file_menu->DropDownItems->Add(this->new_menu);
+this->file_menu->DropDownItems->Add(this->open_menu);
+this->file_menu->DropDownItems->Add(this->save_menu);
+this->file_menu->DropDownItems->Add(this->save_as_menu);
+this->file_menu->DropDownItems->Add(this->load_menu);
+
+// И подключите обработчики:
+this->new_menu->Click += gcnew EventHandler(this, &MainForm::NewProject);
+this->save_as_menu->Click += gcnew EventHandler(this, &MainForm::SaveProjectAs);
+this->open_menu->Click += gcnew EventHandler(this, &MainForm::LoadProject);
+```
+
+6. Убедитесь, что в `GraphElement.h` метод `SaveToFile` объявлен с параметром:
+
+```cpp
+void SaveToFile(String^ projectName); // Должно быть с параметром
+```
+
+7. Проверьте, что все обработчики событий имеют правильную сигнатуру:
+
+```cpp
+// Все должны быть вида:
+void MethodName(Object^ sender, EventArgs^ e);
+```
+
+После внесения этих изменений:
+1. Ошибки с `ParseElementType` исчезнут, так как метод будет определен
+2. Ошибки с `SaveToFile` исчезнут, так как будут передаваться правильные параметры
+3. Ошибки с пунктами меню исчезнут, так как они будут правильно объявлены
+4. Ошибка с дублированием `projectDirectory` исчезнет
+5. Ошибка с несоответствием делегата для `LoadProject` исчезнет
+
+Убедитесь, что после внесения изменений вы:
+1. Очистили решение (Build -> Clean Solution)
+2. Перестроили весь проект (Build -> Rebuild Solution)
