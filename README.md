@@ -1,192 +1,72 @@
-document.addEventListener('DOMContentLoaded', function() {
-    // Элементы звуков
-    const hoverSound = document.getElementById('hoverSound');
-    const clickSound = document.getElementById('clickSound');
-    const bgMusic = document.getElementById('bgMusic');
-    const musicToggle = document.getElementById('musicToggle');
-    
-    // Пентаграмма
-    const pentagram = document.querySelector('.pentagram');
-    
-    // Карусель цитат
-    const quotes = document.querySelectorAll('.quote');
-    let currentQuote = 0;
-    
-    // Инициализация
-    initHoverEffects();
-    initClickEffects();
-    initBloodDrops();
-    startQuoteCarousel();
-    
-    // Фоновый звук
-    let isMusicPlaying = false;
-    musicToggle.addEventListener('click', function() {
-        if (isMusicPlaying) {
-            bgMusic.pause();
-            musicToggle.textContent = '🔊 Включить ритуал';
-        } else {
-            bgMusic.play();
-            musicToggle.textContent = '🔇 Выключить ритуал';
-        }
-        isMusicPlaying = !isMusicPlaying;
-        playClickSound();
-    });
-    
-    // Эффекты при наведении
-    function initHoverEffects() {
-        const hoverElements = document.querySelectorAll('.interest-card, .social-link, .music-btn');
-        
-        hoverElements.forEach(el => {
-            el.addEventListener('mouseenter', function() {
-                playHoverSound();
-                
-                // Случайное изменение размера пентаграммы
-                const randomScale = 0.9 + Math.random() * 0.2;
-                pentagram.style.transform = `translate(-50%, -50%) scale(${randomScale})`;
-                
-                // Эффект пульсации для карточек
-                if (el.classList.contains('interest-card')) {
-                    el.style.boxShadow = `0 0 ${10 + Math.random() * 10}px var(--blood-red)`;
-                }
-            });
-            
-            el.addEventListener('mouseleave', function() {
-                // Возвращаем пентаграмму к исходному размеру
-                pentagram.style.transform = 'translate(-50%, -50%) scale(1)';
-                
-                if (el.classList.contains('interest-card')) {
-                    el.style.boxShadow = '';
-                }
-            });
-        });
-    }
-    
-    // Эффекты при клике
-    function initClickEffects() {
-        const clickElements = document.querySelectorAll('.interest-card, .social-link, .music-btn, .profile-image');
-        
-        clickElements.forEach(el => {
-            el.addEventListener('click', function() {
-                playClickSound();
-                
-                // Создаем эффект крови при клике
-                if (el.classList.contains('profile-image')) {
-                    createBloodSplatter(el);
-                }
-                
-                // Случайное вращение элемента
-                if (Math.random() > 0.7) {
-                    const randomRotate = -5 + Math.random() * 10;
-                    el.style.transform = `rotate(${randomRotate}deg)`;
-                    setTimeout(() => {
-                        el.style.transform = '';
-                    }, 300);
-                }
-            });
-        });
-    }
-    
-    // Анимированные капли крови
-    function initBloodDrops() {
-        const bloodDrops = document.querySelectorAll('.blood-drop');
-        
-        bloodDrops.forEach(drop => {
-            // Случайная анимация
-            const duration = 3 + Math.random() * 4;
-            const delay = Math.random() * 5;
-            
-            drop.style.animation = `bloodPulse ${duration}s infinite ${delay}s`;
-            
-            // Случайное мерцание
-            setInterval(() => {
-                if (Math.random() > 0.7) {
-                    drop.style.opacity = 0.3 + Math.random() * 0.5;
-                }
-            }, 1000);
-        });
-    }
-    
-    // Карусель цитат
-    function startQuoteCarousel() {
-        setInterval(() => {
-            quotes[currentQuote].classList.remove('active');
-            currentQuote = (currentQuote + 1) % quotes.length;
-            quotes[currentQuote].classList.add('active');
-        }, 7000);
-    }
-    
-    // Эффект брызг крови
-    function createBloodSplatter(element) {
-        const rect = element.getBoundingClientRect();
-        const centerX = rect.left + rect.width / 2;
-        const centerY = rect.top + rect.height / 2;
-        
-        for (let i = 0; i < 10; i++) {
-            const splatter = document.createElement('div');
-            splatter.className = 'blood-splatter';
-            
-            // Случайные параметры
-            const size = 5 + Math.random() * 15;
-            const angle = Math.random() * Math.PI * 2;
-            const distance = 10 + Math.random() * 50;
-            const duration = 0.5 + Math.random() * 1;
-            
-            const x = centerX + Math.cos(angle) * distance;
-            const y = centerY + Math.sin(angle) * distance;
-            
-            splatter.style.width = `${size}px`;
-            splatter.style.height = `${size}px`;
-            splatter.style.left = `${x}px`;
-            splatter.style.top = `${y}px`;
-            splatter.style.backgroundColor = `rgba(138, 3, 3, ${0.3 + Math.random() * 0.7})`;
-            splatter.style.borderRadius = `${Math.random() * 50}%`;
-            splatter.style.position = 'fixed';
-            splatter.style.pointerEvents = 'none';
-            splatter.style.zIndex = '1000';
-            splatter.style.animation = `fadeOut ${duration}s forwards`;
-            
-            document.body.appendChild(splatter);
-            
-            // Удаляем через время
-            setTimeout(() => {
-                splatter.remove();
-            }, duration * 1000);
-        }
-    }
-    
-    // Звуковые эффекты
-    function playHoverSound() {
-        hoverSound.currentTime = 0;
-        hoverSound.volume = 0.3;
-        hoverSound.play();
-    }
-    
-    function playClickSound() {
-        clickSound.currentTime = 0;
-        clickSound.volume = 0.4;
-        clickSound.play();
-    }
-    
-    // Добавляем стили для анимации fadeOut
-    const style = document.createElement('style');
-    style.textContent = `
-        @keyframes fadeOut {
-            to {
-                opacity: 0;
-                transform: scale(1.5);
-            }
-        }
-    `;
-    document.head.appendChild(style);
-    
-    // Случайное мерцание заголовка
-    setInterval(() => {
-        if (Math.random() > 0.8) {
-            const title = document.querySelector('.title');
-            title.style.textShadow = `0 0 ${5 + Math.random() * 15}px var(--blood-red)`;
-            setTimeout(() => {
-                title.style.textShadow = '';
-            }, 100);
-        }
-    }, 300);
-});
+I'll help you fix these errors in your code. Here are the corrections needed:
+
+1. First, let's fix the missing menu items in MainForm.h:
+
+```cpp
+// In the private section of MainForm class, add these menu items:
+ToolStripMenuItem^ new_menu;
+ToolStripMenuItem^ save_as_menu;
+ToolStripMenuItem^ open_menu;
+
+// In InitializeComponent(), add these menu items to the file_menu:
+this->new_menu = gcnew ToolStripMenuItem("New Project");
+this->save_as_menu = gcnew ToolStripMenuItem("Save Project As");
+this->open_menu = gcnew ToolStripMenuItem("Open Project");
+
+this->file_menu->DropDownItems->Add(this->new_menu);
+this->file_menu->DropDownItems->Add(this->open_menu);
+this->file_menu->DropDownItems->Add(this->save_menu);
+this->file_menu->DropDownItems->Add(this->save_as_menu);
+this->file_menu->DropDownItems->Add(this->load_menu);
+```
+
+2. Fix the GraphElement::SaveToFile() calls:
+
+```cpp
+// Change the SaveToFile() calls in MainForm.h to include the project name:
+selected_element->SaveToFile(currentProjectName);  // Instead of just SaveToFile()
+
+// And in the CreateNewNode method:
+new_node->SaveToFile(currentProjectName);  // Instead of just SaveToFile()
+```
+
+3. The delegate initialization error is likely due to mismatched event handlers. Make sure all event handlers have the correct signature. For example:
+
+```cpp
+// Change:
+this->new_menu->Click += gcnew EventHandler(this, &MainForm::NewProject);
+this->save_menu->Click += gcnew EventHandler(this, &MainForm::SaveProject);
+this->save_as_menu->Click += gcnew EventHandler(this, &MainForm::SaveProjectAs);
+this->open_menu->Click += gcnew EventHandler(this, &MainForm::LoadProject);
+
+// To match the actual method signatures:
+void NewProject(Object^ sender, EventArgs^ e);
+void SaveProject(Object^ sender, EventArgs^ e);
+void SaveProjectAs(Object^ sender, EventArgs^ e);
+void LoadProject(Object^ sender, EventArgs^ e);
+```
+
+4. Also make sure the GraphElement class has the correct SaveToFile method signature:
+
+```cpp
+// In GraphElement.h, make sure you have:
+void SaveToFile(String^ projectName);  // Not just SaveToFile()
+```
+
+5. For the NodePropertiesEditor, ensure all event handlers are properly connected:
+
+```cpp
+// In NodePropertiesEditor.h, check that all event handlers match:
+void PropertyGrid_PropertyValueChanged(Object^ sender, PropertyValueChangedEventArgs^ e);
+void SaveChanges(Object^ sender, EventArgs^ e);
+void CancelChanges(Object^ sender, EventArgs^ e);
+void DeleteNode(Object^ sender, EventArgs^ e);
+```
+
+These changes should resolve the compilation errors you're seeing. The key issues were:
+1. Missing menu item declarations
+2. Incorrect method signatures for event handlers
+3. Mismatched SaveToFile method calls
+4. Proper delegate initialization
+
+Make sure to rebuild the entire solution after making these changes. If you encounter any other specific errors, please let me know and I can provide more targeted fixes.
