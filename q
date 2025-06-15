@@ -1,130 +1,70 @@
-private:
-    // Add these to the private section of MainForm
-    float zoomFactor;
-    PointF zoomCenter;
-
-    void SaveProject(String^ filePath) {
-        try {
-            StringWriter^ sw = gcnew StringWriter();
-
-            // Save elements
-            sw->WriteLine("[Elements]");
-            for each(GraphElement ^ element in graph_elements) {
-                sw->WriteLine("---");
-                sw->Write(element->Serialize());
-            }
-
-            // Save edges
-            sw->WriteLine("\n[Edges]");
-            for each(GraphEdge ^ edge in edges) {
-                sw->WriteLine("---");
-                sw->Write(edge->Serialize());
-            }
-
-            // Save settings
-            sw->WriteLine("\n[Settings]");
-            sw->WriteLine("ScrollX:" + h_scroll->Value);
-            sw->WriteLine("ScrollY:" + v_scroll->Value);
-
-            File::WriteAllText(filePath, sw->ToString());
-            MessageBox::Show("Project saved successfully!", "Save Project",
-                MessageBoxButtons::OK, MessageBoxIcon::Information);
-        }
-        catch (Exception^ ex) {
-            MessageBox::Show("Error saving project: " + ex->Message, "Error",
-                MessageBoxButtons::OK, MessageBoxIcon::Error);
-        }
-    }
-
-    void LoadProject(String^ filePath) {
-        try {
-            array<String^>^ lines = File::ReadAllLines(filePath);
-            Dictionary<int, GraphElement^>^ elementMap = gcnew Dictionary<int, GraphElement^>();
-            List<array<String^>^>^ elementBlocks = gcnew List<array<String^>^>();
-            List<array<String^>^>^ edgeBlocks = gcnew List<array<String^>^>();
-            int scrollX = 0, scrollY = 0;
-
-            String^ currentSection = "";
-            List<String^>^ currentBlock = gcnew List<String^>();
-
-            for each(String ^ line in lines) {
-                if (line == "[Elements]") { currentSection = "Elements"; continue; }
-                else if (line == "[Edges]") { currentSection = "Edges"; continue; }
-                else if (line == "[Settings]") { currentSection = "Settings"; continue; }
-
-                if (line == "---") {
-                    if (currentBlock->Count > 0) {
-                        if (currentSection == "Elements")
-                            elementBlocks->Add(currentBlock->ToArray());
-                        else if (currentSection == "Edges")
-                            edgeBlocks->Add(currentBlock->ToArray());
-                        currentBlock->Clear();
-                    }
-                    continue;
-                }
-
-                if (currentSection == "Settings") {
-                    if (line->StartsWith("ScrollX:")) scrollX = Int32::Parse(line->Substring(8));
-                    else if (line->StartsWith("ScrollY:")) scrollY = Int32::Parse(line->Substring(8));
-                }
-                else {
-                    currentBlock->Add(line);
-                }
-            }
-
-            // Clear current project
-            graph_elements->Clear();
-            edges->Clear();
-
-            // Load elements
-            for each(array<String^> ^ block in elementBlocks) {
-                GraphElement^ element = GraphElement::Deserialize(block);
-                graph_elements->Add(element);
-                elementMap->Add(element->id, element);
-                node_id_counter = Math::Max(node_id_counter, element->id + 1);
-            }
-
-            // Load edges
-            for each(array<String^> ^ block in edgeBlocks) {
-                GraphEdge^ edge = GraphEdge::Deserialize(block, elementMap);
-                if (edge->source != nullptr && edge->target != nullptr) {
-                    edges->Add(edge);
-                }
-            }
-
-            // Set scroll
-            h_scroll->Value = scrollX;
-            v_scroll->Value = scrollY;
-
-            graph_panel->Invalidate();
-            MessageBox::Show(String::Format("Project loaded: {0} elements, {1} edges",
-                graph_elements->Count, edges->Count), "Load Project",
-                MessageBoxButtons::OK, MessageBoxIcon::Information);
-        }
-        catch (Exception^ ex) {
-            MessageBox::Show("Error loading project: " + ex->Message, "Error",
-                MessageBoxButtons::OK, MessageBoxIcon::Error);
-        }
-    }
-
-    void SaveHtmlExport(String^ filePath) {
-        try {
-            StringBuilder^ html = gcnew StringBuilder();
-            // ... existing HTML export code ...
-            File::WriteAllText(filePath, html->ToString());
-        }
-        catch (Exception^ ex) {
-            MessageBox::Show("HTML export error: " + ex->Message, "Error",
-                MessageBoxButtons::OK, MessageBoxIcon::Error);
-        }
-    }
-
-    void LoadProjectFromFile(Object^ sender, EventArgs^ e) {
-        OpenFileDialog^ openDialog = gcnew OpenFileDialog();
-        openDialog->Filter = "Maltego Project|*.mtg";
-        openDialog->Title = "Load Project";
-
-        if (openDialog->ShowDialog() == Windows::Forms::DialogResult::OK) {
-            LoadProject(openDialog->FileName);
-        }
-    }
+Серьезность	Код	Описание	Проект	Файл	Строка	Состояние подавления	Подробности
+Ошибка	C3767	MaltegoClone::GraphElement::Bounds::get: функции-кандидаты недоступны	MaltegoClone	I:\11-main\MaltegoClone\MaltegoClone\GraphNode.h	41		
+Ошибка	C2259	"MaltegoClone::GraphNode": невозможно создать экземпляр абстрактного класса	MaltegoClone	I:\11-main\MaltegoClone\MaltegoClone\MainForm.h	721		
+Ошибка	C2259	"MaltegoClone::GraphNode": невозможно создать экземпляр абстрактного класса	MaltegoClone	I:\11-main\MaltegoClone\MaltegoClone\MainForm.h	1467		
+Ошибка	C2259	"MaltegoClone::GraphNode": невозможно создать экземпляр абстрактного класса	MaltegoClone	I:\11-main\MaltegoClone\MaltegoClone\MainForm.h	1135		
+Ошибка	C3699	&&: это косвенное обращение невозможно использовать для типа "_T"
+        with
+        [
+            _T=System::Drawing::Rectangle
+        ]	MaltegoClone	I:\11-main\MaltegoClone\MaltegoClone\predefined C++ types (compiler internal)	23		
+Ошибка	C3699	&&: это косвенное обращение невозможно использовать для типа "_T"
+        with
+        [
+            _T=System::Drawing::Rectangle
+        ]	MaltegoClone	I:\11-main\MaltegoClone\MaltegoClone\predefined C++ types (compiler internal)	23		
+Ошибка	C3699	&&: это косвенное обращение невозможно использовать для типа "_T"
+        with
+        [
+            _T=System::Drawing::Rectangle
+        ]	MaltegoClone	I:\11-main\MaltegoClone\MaltegoClone\predefined C++ types (compiler internal)	23		
+Ошибка	C3767	MaltegoClone::GraphElement::Bounds::get: функции-кандидаты недоступны	MaltegoClone	I:\11-main\MaltegoClone\MaltegoClone\GraphNode.h	40		
+Ошибка	C3767	MaltegoClone::GraphElement::Bounds::get: функции-кандидаты недоступны	MaltegoClone	I:\11-main\MaltegoClone\MaltegoClone\GraphNode.h	40		
+Ошибка	C3767	MaltegoClone::GraphElement::Bounds::get: функции-кандидаты недоступны	MaltegoClone	I:\11-main\MaltegoClone\MaltegoClone\GraphNode.h	41		
+Ошибка	C3767	MaltegoClone::GraphElement::Bounds::get: функции-кандидаты недоступны	MaltegoClone	I:\11-main\MaltegoClone\MaltegoClone\GraphEdge.h	24		
+Ошибка	C3767	MaltegoClone::GraphElement::Bounds::get: функции-кандидаты недоступны	MaltegoClone	I:\11-main\MaltegoClone\MaltegoClone\GraphEdge.h	25		
+Ошибка	C3767	MaltegoClone::GraphElement::Bounds::get: функции-кандидаты недоступны	MaltegoClone	I:\11-main\MaltegoClone\MaltegoClone\GraphEdge.h	24		
+Ошибка	C3767	MaltegoClone::GraphElement::Bounds::get: функции-кандидаты недоступны	MaltegoClone	I:\11-main\MaltegoClone\MaltegoClone\GraphEdge.h	25		
+Ошибка	C3767	MaltegoClone::GraphElement::Bounds::get: функции-кандидаты недоступны	MaltegoClone	I:\11-main\MaltegoClone\MaltegoClone\MainForm.h	632		
+Ошибка	C3767	MaltegoClone::GraphElement::Bounds::get: функции-кандидаты недоступны	MaltegoClone	I:\11-main\MaltegoClone\MaltegoClone\MainForm.h	511		
+Ошибка	C3767	MaltegoClone::GraphElement::Bounds::get: функции-кандидаты недоступны	MaltegoClone	I:\11-main\MaltegoClone\MaltegoClone\MainForm.h	926		
+Ошибка	C3767	MaltegoClone::GraphElement::Bounds::get: функции-кандидаты недоступны	MaltegoClone	I:\11-main\MaltegoClone\MaltegoClone\MainForm.h	918		
+Ошибка	C3767	MaltegoClone::GraphElement::Draw: функции-кандидаты недоступны	MaltegoClone	I:\11-main\MaltegoClone\MaltegoClone\MainForm.h	626		
+Ошибка	C3767	MaltegoClone::GraphElement::EndResizing: функции-кандидаты недоступны	MaltegoClone	I:\11-main\MaltegoClone\MaltegoClone\MainForm.h	589		
+Ошибка	C3767	MaltegoClone::GraphElement::HitTestResizeHandle: функции-кандидаты недоступны	MaltegoClone	I:\11-main\MaltegoClone\MaltegoClone\MainForm.h	1318		
+Ошибка	C3767	MaltegoClone::GraphElement::LoadFromFile: функции-кандидаты недоступны	MaltegoClone	I:\11-main\MaltegoClone\MaltegoClone\MainForm.h	1468		
+Ошибка	C3767	MaltegoClone::GraphElement::GraphElement: функции-кандидаты недоступны	MaltegoClone	I:\11-main\MaltegoClone\MaltegoClone\GraphNode.h	19		
+Ошибка	C3767	MaltegoClone::GraphElement::GraphElement: функции-кандидаты недоступны	MaltegoClone	I:\11-main\MaltegoClone\MaltegoClone\GraphNode.h	19		
+Ошибка	C3767	MaltegoClone::GraphElement::Resize: функции-кандидаты недоступны	MaltegoClone	I:\11-main\MaltegoClone\MaltegoClone\MainForm.h	563		
+Ошибка	C3767	MaltegoClone::GraphElement::ResizeHandle::get: функции-кандидаты недоступны	MaltegoClone	I:\11-main\MaltegoClone\MaltegoClone\GraphNode.h	55		
+Ошибка	C3767	MaltegoClone::GraphElement::ResizeHandle::get: функции-кандидаты недоступны	MaltegoClone	I:\11-main\MaltegoClone\MaltegoClone\GraphNode.h	55		
+Ошибка	C3767	MaltegoClone::GraphElement::SaveState: функции-кандидаты недоступны	MaltegoClone	I:\11-main\MaltegoClone\MaltegoClone\MainForm.h	668		
+Ошибка	C3767	MaltegoClone::GraphElement::SaveToFile: функции-кандидаты недоступны	MaltegoClone	I:\11-main\MaltegoClone\MaltegoClone\MainForm.h	585		
+Ошибка	C3767	MaltegoClone::GraphElement::SaveToFile: функции-кандидаты недоступны	MaltegoClone	I:\11-main\MaltegoClone\MaltegoClone\MainForm.h	870		
+Ошибка	C3767	MaltegoClone::GraphElement::SaveToFile: функции-кандидаты недоступны	MaltegoClone	I:\11-main\MaltegoClone\MaltegoClone\MainForm.h	1413		
+Ошибка	C3767	MaltegoClone::GraphElement::SaveToFile: функции-кандидаты недоступны	MaltegoClone	I:\11-main\MaltegoClone\MaltegoClone\MainForm.h	590		
+Ошибка	C3767	MaltegoClone::GraphElement::StartResizing: функции-кандидаты недоступны	MaltegoClone	I:\11-main\MaltegoClone\MaltegoClone\MainForm.h	1319		
+Ошибка (активно)	E0322	использование объекта абстрактного типа класса "MaltegoClone::GraphNode" не допускается:	MaltegoClone	I:\11-main\MaltegoClone\MaltegoClone\MainForm.h	1467		
+Ошибка (активно)	E1767	невозможно вызвать функцию "MaltegoClone::GraphElement::Bounds::get" с данным списком аргументов	MaltegoClone	I:\11-main\MaltegoClone\MaltegoClone\GraphEdge.h	24		
+Ошибка (активно)	E1767	невозможно вызвать функцию "MaltegoClone::GraphElement::Bounds::get" с данным списком аргументов	MaltegoClone	I:\11-main\MaltegoClone\MaltegoClone\GraphEdge.h	25		
+Ошибка (активно)	E1767	невозможно вызвать функцию "MaltegoClone::GraphElement::Bounds::get" с данным списком аргументов	MaltegoClone	I:\11-main\MaltegoClone\MaltegoClone\GraphNode.h	40		
+Ошибка (активно)	E0322	использование объекта абстрактного типа класса "MaltegoClone::GraphNode" не допускается:	MaltegoClone	I:\11-main\MaltegoClone\MaltegoClone\MainForm.h	1135		
+Ошибка (активно)	E0291	для класса "MaltegoClone::GraphElement" не существует конструктор по умолчанию	MaltegoClone	I:\11-main\MaltegoClone\MaltegoClone\GraphNode.h	19		
+Ошибка (активно)	E0322	использование объекта абстрактного типа класса "MaltegoClone::GraphNode" не допускается:	MaltegoClone	I:\11-main\MaltegoClone\MaltegoClone\MainForm.h	721		
+Ошибка (активно)	E1767	невозможно вызвать функцию "MaltegoClone::GraphElement::Bounds::get" с данным списком аргументов	MaltegoClone	I:\11-main\MaltegoClone\MaltegoClone\GraphNode.h	41		
+Ошибка (активно)	E1767	невозможно вызвать функцию "MaltegoClone::GraphElement::Bounds::get" с данным списком аргументов	MaltegoClone	I:\11-main\MaltegoClone\MaltegoClone\MainForm.h	511		
+Ошибка (активно)	E1767	невозможно вызвать функцию "MaltegoClone::GraphElement::Bounds::get" с данным списком аргументов	MaltegoClone	I:\11-main\MaltegoClone\MaltegoClone\MainForm.h	918		
+Ошибка (активно)	E1767	невозможно вызвать функцию "MaltegoClone::GraphElement::Bounds::get" с данным списком аргументов	MaltegoClone	I:\11-main\MaltegoClone\MaltegoClone\MainForm.h	926		
+Ошибка (активно)	E1767	невозможно вызвать функцию "MaltegoClone::GraphElement::Draw" с данным списком аргументов	MaltegoClone	I:\11-main\MaltegoClone\MaltegoClone\MainForm.h	626		
+Ошибка (активно)	E1767	невозможно вызвать функцию "MaltegoClone::GraphElement::Bounds::get" с данным списком аргументов	MaltegoClone	I:\11-main\MaltegoClone\MaltegoClone\MainForm.h	632		
+Ошибка (активно)	E1767	невозможно вызвать функцию "MaltegoClone::GraphElement::EndResizing" с данным списком аргументов	MaltegoClone	I:\11-main\MaltegoClone\MaltegoClone\MainForm.h	589		
+Ошибка (активно)	E1767	невозможно вызвать функцию "MaltegoClone::GraphElement::HitTestResizeHandle" с данным списком аргументов	MaltegoClone	I:\11-main\MaltegoClone\MaltegoClone\MainForm.h	1318		
+Ошибка (активно)	E1767	невозможно вызвать функцию "MaltegoClone::GraphElement::Resize" с данным списком аргументов	MaltegoClone	I:\11-main\MaltegoClone\MaltegoClone\MainForm.h	563		
+Ошибка (активно)	E1767	невозможно вызвать функцию "MaltegoClone::GraphElement::SaveState" с данным списком аргументов	MaltegoClone	I:\11-main\MaltegoClone\MaltegoClone\MainForm.h	668		
+Ошибка (активно)	E1767	невозможно вызвать функцию "MaltegoClone::GraphElement::SaveToFile" с данным списком аргументов	MaltegoClone	I:\11-main\MaltegoClone\MaltegoClone\MainForm.h	585		
+Ошибка (активно)	E1767	невозможно вызвать функцию "MaltegoClone::GraphElement::ResizeHandle::get" с данным списком аргументов	MaltegoClone	I:\11-main\MaltegoClone\MaltegoClone\GraphNode.h	55		
+Ошибка (активно)	E1767	невозможно вызвать функцию "MaltegoClone::GraphElement::SaveToFile" с данным списком аргументов	MaltegoClone	I:\11-main\MaltegoClone\MaltegoClone\MainForm.h	590		
+Ошибка (активно)	E1767	невозможно вызвать функцию "MaltegoClone::GraphElement::SaveToFile" с данным списком аргументов	MaltegoClone	I:\11-main\MaltegoClone\MaltegoClone\MainForm.h	870		
+Ошибка (активно)	E1767	невозможно вызвать функцию "MaltegoClone::GraphElement::StartResizing" с данным списком аргументов	MaltegoClone	I:\11-main\MaltegoClone\MaltegoClone\MainForm.h	1319		
+Ошибка (активно)	E1767	невозможно вызвать функцию "MaltegoClone::GraphElement::SaveToFile" с данным списком аргументов	MaltegoClone	I:\11-main\MaltegoClone\MaltegoClone\MainForm.h	1413		
+Ошибка (активно)	E0304	отсутствуют экземпляры функцию "MaltegoClone::GraphNode::LoadFromFile", соответствующие списку аргументов	MaltegoClone	I:\11-main\MaltegoClone\MaltegoClone\MainForm.h	1468
