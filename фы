@@ -1,709 +1,2047 @@
-// large_form.h
-#pragma once
+import sys
+import os
+import re
+import json
+import paramiko
+import logging
+import uuid
+import datetime
+import platform
+import subprocess
+import tempfile
+import webbrowser
+import qrcode
+import socket
+import time
+import threading
+from io import BytesIO
+from cryptography.fernet import Fernet
+from PyQt5.QtWidgets import (
+    QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QPushButton, 
+    QListWidget, QLabel, QLineEdit, QMessageBox, QTabWidget,
+    QInputDialog, QProgressBar, QSystemTrayIcon, QMenu, QAction,
+    QGroupBox, QTextEdit, QComboBox, QSpinBox, QCheckBox, QFileDialog,
+    QDialog, QDialogButtonBox, QDateEdit, QFormLayout, QSplitter,
+    QTreeWidget, QTreeWidgetItem, QHeaderView, QTableWidget, QTableWidgetItem,
+    QAbstractItemView, QSizePolicy, QFrame, QApplication, QStyleFactory
+)
+from PyQt5.QtCore import QThread, pyqtSignal, Qt, QTimer, QDateTime, QSize
+from PyQt5.QtGui import QIcon, QPixmap, QTextCursor, QFont, QColor, QImage, QPalette, QBrush, QDesktopServices
+from dateutil.relativedelta import relativedelta
 
-#include <Windows.h>
-#include <stack>
-#include <cmath>
-#include <algorithm>
-#include <string>
+# Настройка логирования
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler("xray_manager.log"),
+        logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger(__name__)
 
-namespace crl2stud {
+# Генерация ключа шифрования для паролей
+def generate_encryption_key():
+    key_path = os.path.join(os.path.expanduser("~"), ".xray_manager", "encryption.key")
+    if os.path.exists(key_path):
+        with open(key_path, "rb") as key_file:
+            return key_file.read()
+    else:
+        key = Fernet.generate_key()
+        os.makedirs(os.path.dirname(key_path), exist_ok=True)
+        with open(key_path, "wb") as key_file:
+            key_file.write(key)
+        return key
 
-    using namespace System;
-    using namespace System::ComponentModel;
-    using namespace System::Collections;
-    using namespace System::Windows::Forms;
-    using namespace System::Data;
-    using namespace System::Drawing;
+ENCRYPTION_KEY = generate_encryption_key()
+CIPHER = Fernet(ENCRYPTION_KEY)
 
-    public ref class large_form : public System::Windows::Forms::Form
-    {
-    public:
-        large_form(void)
-        {
-            InitializeComponent();
-            InitializeTrigMenu();
-            this->trigMenu->Visible = false;
+class SSHWorker(QThread):
+    operation_complete = pyqtSignal(dict)
+    progress_update = pyqtSignal(int, str)
+    log_message = pyqtSignal(str)
+    connection_closed = pyqtSignal()
+
+    def __init__(self, server_info, operation):
+        super().__init__()
+        self.server_info = server_info
+        self.operation = operation
+        self.additional_data = None
+        self.ssh = None
+        self.sftp = None
+        self.stop_flag = False
+
+    def run(self):
+        try:
+            self.log_message.emit(f"Connecting to {self.server_info['host']}:{self.server_info.get('port', 22)}...")
+            self.ssh = paramiko.SSHClient()
+            self.ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            
+            self.ssh.connect(
+                hostname=self.server_info['host'],
+                port=self.server_info.get('port', 22),
+                username=self.server_info['user'],
+                password=self.server_info['password'],
+                timeout=15
+            )
+            self.sftp = self.ssh.open_sftp()
+            self.log_message.emit("SSH connection established")
+
+            result = {}
+            if self.operation == 'install_xray':
+                result = self._install_xray()
+            elif self.operation == 'generate_keys':
+                result = self._generate_keys()
+            elif self.operation == 'list_users':
+                result = self._list_users()
+            elif self.operation == 'add_user':
+                result = self._add_user()
+            elif self.operation == 'delete_user':
+                result = self._delete_user()
+            elif self.operation == 'check_status':
+                result = self._check_status()
+            elif self.operation == 'get_stats':
+                result = self._get_stats()
+            elif self.operation == 'update_geo':
+                result = self._update_geo()
+            elif self.operation == 'get_service_logs':
+                result = self._get_service_logs()
+            elif self.operation == 'get_connections':
+                result = self._get_connections()
+            elif self.operation == 'update_xray':
+                result = self._update_xray()
+            elif self.operation == 'backup_config':
+                result = self._backup_config()
+            elif self.operation == 'restore_config':
+                result = self._restore_config()
+            elif self.operation == 'change_port':
+                result = self._change_port()
+            elif self.operation == 'change_sni':
+                result = self._change_sni()
+            elif self.operation == 'toggle_tls':
+                result = self._toggle_tls()
+            elif self.operation == 'get_config':
+                result = self._get_config()
+            elif self.operation == 'apply_config':
+                result = self._apply_config()
+            elif self.operation == 'test_connection':
+                result = self._test_connection()
+            elif self.operation == 'get_system_info':
+                result = self._get_system_info()
+
+            if not self.stop_flag:
+                self.operation_complete.emit(result)
+
+        except Exception as e:
+            self.log_message.emit(f"SSH Error: {str(e)}")
+            self.operation_complete.emit({'error': str(e)})
+        finally:
+            self._cleanup()
+            self.connection_closed.emit()
+
+    def _cleanup(self):
+        try:
+            if self.sftp:
+                self.sftp.close()
+            if self.ssh:
+                self.ssh.close()
+        except Exception as e:
+            self.log_message.emit(f"Cleanup error: {str(e)}")
+
+    def _execute_command(self, command):
+        if self.stop_flag:
+            return None, None
+
+        self.log_message.emit(f"Executing: {command}")
+        stdin, stdout, stderr = self.ssh.exec_command(command)
+        exit_status = stdout.channel.recv_exit_status()
+        output = stdout.read().decode().strip()
+        error = stderr.read().decode().strip()
+
+        if exit_status != 0:
+            raise Exception(f"Command failed ({exit_status}): {error}")
+        
+        return output, error
+
+    def _install_xray(self):
+        commands = [
+            "apt update -y",
+            "apt install -y curl unzip jq",
+            "bash -c \"$(curl -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh)\" @ install"
+        ]
+        
+        for i, cmd in enumerate(commands):
+            if self.stop_flag:
+                return
+            self.progress_update.emit((i+1)*33, f"Step {i+1}/{len(commands)}")
+            self._execute_command(cmd)
+        self.progress_update.emit(100, "Installation complete")
+        return {'message': "XRay installed successfully"}
+
+    def _generate_keys(self):
+        output, _ = self._execute_command("xray x25519")
+        
+        private_key = re.search(r"Private key:\s*([A-Za-z0-9+/=]+)", output).group(1)
+        public_key = re.search(r"Public key:\s*([A-Za-z0-9+/=]+)", output).group(1)
+
+        # Update config
+        with self.sftp.file('/usr/local/etc/xray/config.json', 'r') as f:
+            config = json.load(f)
+        
+        config['inbounds'][0]['streamSettings']['realitySettings']['privateKey'] = private_key
+        
+        with self.sftp.file('/usr/local/etc/xray/config.json', 'w') as f:
+            f.write(json.dumps(config, indent=2))
+        
+        # Save public key
+        with self.sftp.file('/usr/local/etc/xray/public_key', 'w') as f:
+            f.write(public_key)
+            
+        # Restart service
+        self._execute_command("systemctl restart xray")
+        
+        return {
+            'private_key': private_key,
+            'public_key': public_key,
+            'message': "Keys generated and service restarted"
         }
 
-    protected:
-        ~large_form()
-        {
-            if (components)
-            {
-                delete components;
+    def _list_users(self):
+        output, _ = self._execute_command("cat /usr/local/etc/xray/config.json")
+        config = json.loads(output)
+        
+        users = []
+        for client in config['inbounds'][0]['settings']['clients']:
+            if client['id'] != "EMPTY":
+                users.append({
+                    'uuid': client['id'],
+                    'flow': client.get('flow', ''),
+                    'email': client.get('email', ''),
+                    'expiry': client.get('expiry', ''),
+                    'created': client.get('created', ''),
+                    'traffic': client.get('traffic', 0)
+                })
+        
+        # Get inbound settings
+        inbound = config['inbounds'][0]
+        settings = {
+            'port': inbound['port'],
+            'protocol': inbound['protocol'],
+            'security': inbound['streamSettings'].get('security', 'reality'),
+            'sni': inbound['streamSettings']['realitySettings']['serverNames'][0],
+            'short_ids': inbound['streamSettings']['realitySettings']['shortIds']
+        }
+        
+        return {
+            'users': users,
+            'settings': settings
+        }
+
+    def _add_user(self):
+        uuid_val = self.additional_data.get('uuid')
+        email = self.additional_data.get('email', '')
+        expiry = self.additional_data.get('expiry', '')
+        duration = self.additional_data.get('duration', 0)
+        
+        # Calculate expiry if duration is provided
+        if duration > 0:
+            expiry_date = datetime.datetime.now() + datetime.timedelta(days=duration)
+            expiry = expiry_date.strftime("%Y-%m-%d")
+        
+        created = datetime.datetime.now().strftime("%Y-%m-%d")
+        
+        with self.sftp.file('/usr/local/etc/xray/config.json', 'r') as f:
+            config = json.load(f)
+        
+        # Find first empty slot
+        added = False
+        for client in config['inbounds'][0]['settings']['clients']:
+            if client['id'] == "EMPTY":
+                client['id'] = uuid_val
+                if email:
+                    client['email'] = email
+                if expiry:
+                    client['expiry'] = expiry
+                client['created'] = created
+                client['traffic'] = 0
+                added = True
+                break
+        
+        if not added:
+            raise Exception("No empty slots available in config")
+            
+        with self.sftp.file('/usr/local/etc/xray/config.json', 'w') as f:
+            f.write(json.dumps(config, indent=2))
+            
+        self._execute_command("systemctl restart xray")
+        
+        # Get public key
+        with self.sftp.file('/usr/local/etc/xray/public_key', 'r') as f:
+            public_key = f.read().decode()
+            
+        return {
+            'uuid': uuid_val,
+            'public_key': public_key,
+            'email': email,
+            'expiry': expiry,
+            'created': created,
+            'message': "User added successfully"
+        }
+
+    def _delete_user(self):
+        uuid_val = self.additional_data['uuid']
+        
+        with self.sftp.file('/usr/local/etc/xray/config.json', 'r') as f:
+            config = json.load(f)
+        
+        deleted = False
+        for client in config['inbounds'][0]['settings']['clients']:
+            if client['id'] == uuid_val:
+                client['id'] = "EMPTY"
+                if 'email' in client:
+                    del client['email']
+                if 'expiry' in client:
+                    del client['expiry']
+                if 'created' in client:
+                    del client['created']
+                if 'traffic' in client:
+                    del client['traffic']
+                deleted = True
+                break
+        
+        if not deleted:
+            raise Exception("User not found in config")
+            
+        with self.sftp.file('/usr/local/etc/xray/config.json', 'w') as f:
+            f.write(json.dumps(config, indent=2))
+            
+        self._execute_command("systemctl restart xray")
+        
+        return {
+            'uuid': uuid_val,
+            'message': "User deleted successfully"
+        }
+
+    def _check_status(self):
+        output, _ = self._execute_command("systemctl is-active xray")
+        return {'status': output}
+
+    def _get_stats(self):
+        try:
+            output, _ = self._execute_command("xray api stats --server=127.0.0.1:10085")
+            return {'stats': json.loads(output)}
+        except:
+            return {'stats': []}
+
+    def _update_geo(self):
+        self._execute_command("bash -c \"$(curl -L https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/install.sh)\"")
+        self._execute_command("systemctl restart xray")
+        return {'message': "Geo data updated successfully"}
+
+    def _get_service_logs(self):
+        output, _ = self._execute_command("journalctl -u xray -n 100 --no-pager")
+        return {'logs': output}
+
+    def _get_connections(self):
+        output, _ = self._execute_command("ss -tunp | grep xray || echo 'No active connections'")
+        return {'connections': output}
+
+    def _update_xray(self):
+        self._execute_command("bash -c \"$(curl -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh)\" @ install -u")
+        self._execute_command("systemctl restart xray")
+        return {'message': "XRay updated successfully"}
+
+    def _backup_config(self):
+        backup_path = "/tmp/xray_backup.tar.gz"
+        self._execute_command(f"tar -czf {backup_path} /usr/local/etc/xray")
+        
+        local_path = self.additional_data.get('local_path', os.path.join(os.path.expanduser("~"), "xray_backup.tar.gz"))
+        self.sftp.get(backup_path, local_path)
+        self._execute_command(f"rm {backup_path}")
+        
+        return {'message': f"Backup created at {local_path}", 'path': local_path}
+
+    def _restore_config(self):
+        backup_path = "/tmp/xray_backup.tar.gz"
+        local_path = self.additional_data['local_path']
+        
+        self.sftp.put(local_path, backup_path)
+        self._execute_command(f"tar -xzf {backup_path} -C /")
+        self._execute_command(f"rm {backup_path}")
+        self._execute_command("systemctl restart xray")
+        return {'message': "Config restored successfully"}
+
+    def _change_port(self):
+        port = self.additional_data['port']
+        self._execute_command(f"sed -i 's/\"port\": [0-9]*,/\"port\": {port},/' /usr/local/etc/xray/config.json")
+        self._execute_command("systemctl restart xray")
+        return {'message': f"Port changed to {port}"}
+
+    def _change_sni(self):
+        sni = self.additional_data['sni']
+        self._execute_command(f"sed -i 's/\"serverNames\": \\[\".*\"\\]/\"serverNames\": [\"{sni}\"]/' /usr/local/etc/xray/config.json")
+        self._execute_command("systemctl restart xray")
+        return {'message': f"SNI changed to {sni}"}
+
+    def _toggle_tls(self):
+        enable = self.additional_data['enable']
+        if enable:
+            cmds = [
+                "sed -i 's/\"security\": \"reality\"/\"security\": \"tls\"/' /usr/local/etc/xray/config.json",
+                "sed -i 's/\"certificates\": \\[\\]/\"certificates\": [{\"certificateFile\": \"/usr/local/etc/xray/fullchain.crt\", \"keyFile\": \"/usr/local/etc/xray/private.key\"}]/' /usr/local/etc/xray/config.json"
+            ]
+        else:
+            cmds = [
+                "sed -i 's/\"security\": \"tls\"/\"security\": \"reality\"/' /usr/local/etc/xray/config.json",
+                "sed -i 's/\"certificates\": \\[.*\\]/\"certificates\": []/' /usr/local/etc/xray/config.json"
+            ]
+        
+        for cmd in cmds:
+            self._execute_command(cmd)
+        
+        self._execute_command("systemctl restart xray")
+        return {'message': f"TLS {'enabled' if enable else 'disabled'}"}
+
+    def _get_config(self):
+        output, _ = self._execute_command("cat /usr/local/etc/xray/config.json")
+        return {'config': output}
+
+    def _apply_config(self):
+        config = self.additional_data['config']
+        temp_path = "/tmp/xray_config.json"
+        
+        # Save config to local temp file
+        with tempfile.NamedTemporaryFile(mode='w', delete=False) as temp_file:
+            temp_file.write(config)
+            local_temp = temp_file.name
+        
+        # Upload to server
+        self.sftp.put(local_temp, temp_path)
+        self._execute_command(f"mv {temp_path} /usr/local/etc/xray/config.json")
+        self._execute_command("systemctl restart xray")
+        os.unlink(local_temp)
+        
+        return {'message': "Config applied successfully"}
+
+    def _test_connection(self):
+        try:
+            # Test connectivity to XRay port
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(5)
+            result = sock.connect_ex((self.server_info['host'], self.current_settings.get('port', 443)))
+            sock.close()
+            return {'success': result == 0}
+        except Exception as e:
+            return {'error': str(e)}
+
+    def _get_system_info(self):
+        try:
+            # Get system information
+            output, _ = self._execute_command("uname -a")
+            return {'system_info': output}
+        except:
+            return {'system_info': "Unknown"}
+
+    def stop(self):
+        self.stop_flag = True
+        self._cleanup()
+
+class XrayManager(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.server_info = None
+        self.ssh_worker = None
+        self.current_users = []
+        self.current_settings = {}
+        self.auto_refresh_timer = None
+        
+        self.setup_ui()
+        self.setup_tray()
+        self.setup_connections()
+        
+        # Load last session if exists
+        self.load_session()
+
+    def setup_ui(self):
+        self.setWindowTitle("XRay Server Manager Pro")
+        self.setWindowIcon(QIcon(self.get_icon_path("app_icon")))
+        self.setGeometry(100, 100, 1200, 800)
+        
+        # Apply modern style
+        QApplication.setStyle(QStyleFactory.create("Fusion"))
+        self.apply_styles()
+        
+        # Central widget and layout
+        central_widget = QWidget()
+        self.setCentralWidget(central_widget)
+        self.main_layout = QVBoxLayout(central_widget)
+        self.main_layout.setContentsMargins(10, 10, 10, 10)
+        self.main_layout.setSpacing(10)
+        
+        # Tab widget for different sections
+        self.tabs = QTabWidget()
+        self.tabs.setTabPosition(QTabWidget.North)
+        self.tabs.setDocumentMode(True)
+        self.main_layout.addWidget(self.tabs)
+        
+        # Setup all tabs
+        self.setup_connection_tab()
+        self.setup_management_tab()
+        self.setup_stats_tab()
+        self.setup_config_editor_tab()
+        self.setup_server_settings_tab()
+        self.setup_backup_tab()
+        
+        # Status Bar
+        self.status_bar = self.statusBar()
+        self.status_label = QLabel("Not connected")
+        self.status_bar.addPermanentWidget(self.status_label)
+        
+        # Progress bar in status bar
+        self.status_progress = QProgressBar()
+        self.status_progress.setFixedWidth(200)
+        self.status_progress.setVisible(False)
+        self.status_bar.addPermanentWidget(self.status_progress)
+        
+        # Initially disable all tabs except connection
+        for i in range(1, self.tabs.count()):
+            self.tabs.setTabEnabled(i, False)
+
+    def apply_styles(self):
+        dark_palette = QApplication.palette()
+        dark_palette.setColor(QPalette.Window, QColor(53, 53, 53))
+        dark_palette.setColor(QPalette.WindowText, Qt.white)
+        dark_palette.setColor(QPalette.Base, QColor(35, 35, 35))
+        dark_palette.setColor(QPalette.AlternateBase, QColor(53, 53, 53))
+        dark_palette.setColor(QPalette.ToolTipBase, Qt.white)
+        dark_palette.setColor(QPalette.ToolTipText, Qt.white)
+        dark_palette.setColor(QPalette.Text, Qt.white)
+        dark_palette.setColor(QPalette.Button, QColor(53, 53, 53))
+        dark_palette.setColor(QPalette.ButtonText, Qt.white)
+        dark_palette.setColor(QPalette.BrightText, Qt.red)
+        dark_palette.setColor(QPalette.Link, QColor(42, 130, 218))
+        dark_palette.setColor(QPalette.Highlight, QColor(42, 130, 218))
+        dark_palette.setColor(QPalette.HighlightedText, Qt.black)
+        QApplication.setPalette(dark_palette)
+
+        self.setStyleSheet("""
+            QMainWindow {
+                background-color: #2D2D30;
             }
+            QTabWidget::pane {
+                border: 1px solid #3F3F46;
+                background: #252526;
+                border-radius: 4px;
+            }
+            QTabBar::tab {
+                background: #333337;
+                color: #D4D4D4;
+                padding: 8px 15px;
+                border-top-left-radius: 4px;
+                border-top-right-radius: 4px;
+                border: 1px solid #3F3F46;
+                margin-right: 2px;
+            }
+            QTabBar::tab:selected {
+                background: #007ACC;
+                color: white;
+                border-bottom: 2px solid #007ACC;
+            }
+            QGroupBox {
+                border: 1px solid #3F3F46;
+                border-radius: 4px;
+                margin-top: 1.5ex;
+                font-weight: bold;
+                color: #D4D4D4;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                subcontrol-position: top left;
+                padding: 0 5px;
+                left: 10px;
+            }
+            QPushButton {
+                background-color: #333337;
+                color: #D4D4D4;
+                border: 1px solid #3F3F46;
+                border-radius: 4px;
+                padding: 5px 10px;
+                min-width: 80px;
+            }
+            QPushButton:hover {
+                background-color: #3C3C40;
+                border: 1px solid #007ACC;
+            }
+            QPushButton:pressed {
+                background-color: #007ACC;
+                color: white;
+            }
+            QPushButton:disabled {
+                background-color: #252526;
+                color: #6B6B6B;
+            }
+            QLineEdit, QTextEdit, QListWidget, QComboBox, QSpinBox {
+                background-color: #333337;
+                color: #D4D4D4;
+                border: 1px solid #3F3F46;
+                border-radius: 4px;
+                padding: 5px;
+            }
+            QLabel {
+                color: #D4D4D4;
+            }
+            QProgressBar {
+                border: 1px solid #3F3F46;
+                border-radius: 4px;
+                text-align: center;
+                background: #252526;
+            }
+            QProgressBar::chunk {
+                background-color: #007ACC;
+                width: 10px;
+            }
+            QTableWidget {
+                background-color: #333337;
+                color: #D4D4D4;
+                gridline-color: #3F3F46;
+                border: 1px solid #3F3F46;
+                border-radius: 4px;
+            }
+            QHeaderView::section {
+                background-color: #252526;
+                color: #D4D4D4;
+                padding: 4px;
+                border: 1px solid #3F3F46;
+            }
+            QTreeWidget {
+                background-color: #333337;
+                color: #D4D4D4;
+                border: 1px solid #3F3F46;
+                border-radius: 4px;
+            }
+            QDialog {
+                background-color: #2D2D30;
+            }
+        """)
+
+    def get_icon_path(self, icon_name):
+        # В реальном приложении здесь должен быть путь к иконке
+        return ""
+
+    def setup_connection_tab(self):
+        self.connection_tab = QWidget()
+        layout = QVBoxLayout()
+        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setSpacing(15)
+        
+        # Server Info Group
+        server_group = QGroupBox("Server Information")
+        server_layout = QFormLayout()
+        server_layout.setLabelAlignment(Qt.AlignRight)
+        server_layout.setFormAlignment(Qt.AlignLeft)
+        
+        self.host_input = QLineEdit()
+        self.host_input.setPlaceholderText("Server IP or Domain")
+        server_layout.addRow(QLabel("Host:"), self.host_input)
+        
+        self.port_input = QSpinBox()
+        self.port_input.setRange(1, 65535)
+        self.port_input.setValue(22)
+        server_layout.addRow(QLabel("Port:"), self.port_input)
+        
+        self.user_input = QLineEdit()
+        self.user_input.setPlaceholderText("Username")
+        server_layout.addRow(QLabel("Username:"), self.user_input)
+        
+        self.pass_input = QLineEdit()
+        self.pass_input.setPlaceholderText("Password")
+        self.pass_input.setEchoMode(QLineEdit.Password)
+        server_layout.addRow(QLabel("Password:"), self.pass_input)
+        
+        self.save_pass_check = QCheckBox("Save password (encrypted)")
+        self.save_pass_check.setChecked(True)
+        server_layout.addRow(QLabel(""), self.save_pass_check)
+        
+        server_group.setLayout(server_layout)
+        layout.addWidget(server_group)
+        
+        # Connection Buttons
+        btn_layout = QHBoxLayout()
+        self.connect_btn = QPushButton("Connect")
+        self.connect_btn.setStyleSheet("background-color: #4CAF50; color: white;")
+        self.disconnect_btn = QPushButton("Disconnect")
+        self.disconnect_btn.setStyleSheet("background-color: #f44336; color: white;")
+        self.disconnect_btn.setEnabled(False)
+        
+        btn_layout.addWidget(self.connect_btn)
+        btn_layout.addWidget(self.disconnect_btn)
+        layout.addLayout(btn_layout)
+        
+        # Log Output
+        log_group = QGroupBox("Log Output")
+        log_layout = QVBoxLayout()
+        self.log_output = QTextEdit()
+        self.log_output.setReadOnly(True)
+        self.log_output.setFont(QFont("Consolas", 10))
+        log_layout.addWidget(self.log_output)
+        log_group.setLayout(log_layout)
+        layout.addWidget(log_group)
+        
+        self.connection_tab.setLayout(layout)
+        self.tabs.addTab(self.connection_tab, "Connection")
+
+    def setup_management_tab(self):
+        self.management_tab = QWidget()
+        layout = QVBoxLayout()
+        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setSpacing(15)
+        
+        # Server Actions Group
+        actions_group = QGroupBox("Server Actions")
+        actions_layout = QHBoxLayout()
+        
+        self.install_btn = QPushButton("Install XRay")
+        self.install_btn.setToolTip("Install XRay on the server")
+        self.keys_btn = QPushButton("Generate Keys")
+        self.keys_btn.setToolTip("Generate new private/public keys")
+        self.restart_btn = QPushButton("Restart Service")
+        self.restart_btn.setToolTip("Restart XRay service")
+        self.geo_update_btn = QPushButton("Update Geo Data")
+        self.geo_update_btn.setToolTip("Update geoip/geosite data")
+        self.update_xray_btn = QPushButton("Update XRay")
+        self.update_xray_btn.setToolTip("Update XRay to latest version")
+        
+        actions_layout.addWidget(self.install_btn)
+        actions_layout.addWidget(self.keys_btn)
+        actions_layout.addWidget(self.restart_btn)
+        actions_layout.addWidget(self.geo_update_btn)
+        actions_layout.addWidget(self.update_xray_btn)
+        actions_group.setLayout(actions_layout)
+        layout.addWidget(actions_group)
+        
+        # Splitter for users list and config preview
+        splitter = QSplitter(Qt.Horizontal)
+        
+        # Users Management Group
+        users_group = QWidget()
+        users_layout = QVBoxLayout()
+        
+        # Users List
+        self.users_list = QTreeWidget()
+        self.users_list.setHeaderLabels(["UUID", "Email", "Created", "Expiry", "Traffic"])
+        self.users_list.setSelectionMode(QAbstractItemView.ExtendedSelection)
+        self.users_list.setSortingEnabled(True)
+        self.users_list.setRootIsDecorated(False)
+        self.users_list.header().setSectionResizeMode(QHeaderView.Interactive)
+        self.users_list.setContextMenuPolicy(Qt.CustomContextMenu)
+        
+        # User Actions
+        user_actions_layout = QHBoxLayout()
+        self.add_user_btn = QPushButton("Add User")
+        self.edit_user_btn = QPushButton("Edit Selected")
+        self.delete_user_btn = QPushButton("Delete Selected")
+        self.copy_config_btn = QPushButton("Copy Config")
+        self.export_config_btn = QPushButton("Export Config")
+        self.generate_qr_btn = QPushButton("Generate QR")
+        
+        user_actions_layout.addWidget(self.add_user_btn)
+        user_actions_layout.addWidget(self.edit_user_btn)
+        user_actions_layout.addWidget(self.delete_user_btn)
+        user_actions_layout.addWidget(self.copy_config_btn)
+        user_actions_layout.addWidget(self.export_config_btn)
+        user_actions_layout.addWidget(self.generate_qr_btn)
+        users_layout.addWidget(self.users_list)
+        users_layout.addLayout(user_actions_layout)
+        
+        users_group.setLayout(users_layout)
+        splitter.addWidget(users_group)
+        
+        # Config Preview Group
+        config_group = QWidget()
+        config_layout = QVBoxLayout()
+        
+        self.config_preview = QTextEdit()
+        self.config_preview.setReadOnly(True)
+        self.config_preview.setFont(QFont("Consolas", 10))
+        
+        self.qr_label = QLabel()
+        self.qr_label.setAlignment(Qt.AlignCenter)
+        self.qr_label.setMinimumSize(200, 200)
+        self.qr_label.setFrameShape(QFrame.Box)
+        self.qr_label.setStyleSheet("background-color: white;")
+        
+        config_layout.addWidget(QLabel("Configuration:"))
+        config_layout.addWidget(self.config_preview)
+        config_layout.addWidget(QLabel("QR Code:"))
+        config_layout.addWidget(self.qr_label)
+        
+        config_group.setLayout(config_layout)
+        splitter.addWidget(config_group)
+        
+        splitter.setSizes([600, 400])
+        layout.addWidget(splitter)
+        
+        self.management_tab.setLayout(layout)
+        self.tabs.addTab(self.management_tab, "User Management")
+
+    def setup_stats_tab(self):
+        self.stats_tab = QWidget()
+        layout = QVBoxLayout()
+        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setSpacing(15)
+        
+        # Stats Controls
+        controls_layout = QHBoxLayout()
+        self.refresh_stats_btn = QPushButton("Refresh Stats")
+        self.stats_interval = QSpinBox()
+        self.stats_interval.setRange(5, 300)
+        self.stats_interval.setValue(30)
+        self.stats_interval.setSuffix(" sec")
+        self.auto_refresh_check = QCheckBox("Auto-refresh")
+        
+        controls_layout.addWidget(self.refresh_stats_btn)
+        controls_layout.addWidget(QLabel("Interval:"))
+        controls_layout.addWidget(self.stats_interval)
+        controls_layout.addWidget(self.auto_refresh_check)
+        layout.addLayout(controls_layout)
+        
+        # Stats Table
+        self.stats_table = QTableWidget()
+        self.stats_table.setColumnCount(3)
+        self.stats_table.setHorizontalHeaderLabels(["Name", "Type", "Value"])
+        self.stats_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        self.stats_table.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        self.stats_table.setSelectionBehavior(QAbstractItemView.SelectRows)
+        
+        # Traffic Graph Placeholder
+        traffic_group = QGroupBox("Traffic Statistics")
+        traffic_layout = QVBoxLayout()
+        self.traffic_label = QLabel("Traffic graph will be displayed here")
+        self.traffic_label.setAlignment(Qt.AlignCenter)
+        traffic_layout.addWidget(self.traffic_label)
+        traffic_group.setLayout(traffic_layout)
+        
+        layout.addWidget(self.stats_table)
+        layout.addWidget(traffic_group)
+        
+        self.stats_tab.setLayout(layout)
+        self.tabs.addTab(self.stats_tab, "Statistics")
+
+    def setup_config_editor_tab(self):
+        self.config_editor_tab = QWidget()
+        layout = QVBoxLayout()
+        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setSpacing(15)
+        
+        # Config Editor
+        self.config_editor = QTextEdit()
+        self.config_editor.setFont(QFont("Consolas", 10))
+        
+        # Editor Actions
+        editor_actions = QHBoxLayout()
+        self.load_config_btn = QPushButton("Load Config")
+        self.save_config_btn = QPushButton("Save Locally")
+        self.upload_config_btn = QPushButton("Upload to Server")
+        self.validate_config_btn = QPushButton("Validate")
+        self.apply_config_btn = QPushButton("Apply Config")
+        
+        editor_actions.addWidget(self.load_config_btn)
+        editor_actions.addWidget(self.save_config_btn)
+        editor_actions.addWidget(self.upload_config_btn)
+        editor_actions.addWidget(self.validate_config_btn)
+        editor_actions.addWidget(self.apply_config_btn)
+        layout.addWidget(self.config_editor)
+        layout.addLayout(editor_actions)
+        
+        self.config_editor_tab.setLayout(layout)
+        self.tabs.addTab(self.config_editor_tab, "Config Editor")
+
+    def setup_server_settings_tab(self):
+        self.settings_tab = QWidget()
+        layout = QVBoxLayout()
+        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setSpacing(15)
+        
+        # Server Settings Group
+        settings_group = QGroupBox("Server Configuration")
+        settings_layout = QFormLayout()
+        
+        self.port_input_setting = QSpinBox()
+        self.port_input_setting.setRange(1, 65535)
+        self.port_input_setting.setValue(443)
+        settings_layout.addRow(QLabel("Server Port:"), self.port_input_setting)
+        
+        self.sni_input = QLineEdit("google.com")
+        settings_layout.addRow(QLabel("Default SNI:"), self.sni_input)
+        
+        self.tls_check = QCheckBox("Enable TLS")
+        settings_layout.addRow(QLabel("TLS Mode:"), self.tls_check)
+        
+        self.apply_settings_btn = QPushButton("Apply Settings")
+        settings_layout.addRow(QLabel(""), self.apply_settings_btn)
+        
+        # Certificate Info
+        self.cert_info = QTextEdit()
+        self.cert_info.setReadOnly(True)
+        settings_layout.addRow(QLabel("Certificate Info:"), self.cert_info)
+        
+        settings_group.setLayout(settings_layout)
+        layout.addWidget(settings_group)
+        
+        # Service Info Group
+        service_group = QGroupBox("Service Information")
+        service_layout = QVBoxLayout()
+        
+        self.service_logs = QTextEdit()
+        self.service_logs.setReadOnly(True)
+        self.service_logs.setFont(QFont("Consolas", 9))
+        
+        self.connections_view = QTextEdit()
+        self.connections_view.setReadOnly(True)
+        self.connections_view.setFont(QFont("Consolas", 9))
+        
+        service_layout.addWidget(QLabel("Service Logs:"))
+        service_layout.addWidget(self.service_logs)
+        service_layout.addWidget(QLabel("Active Connections:"))
+        service_layout.addWidget(self.connections_view)
+        
+        service_group.setLayout(service_layout)
+        layout.addWidget(service_group)
+        
+        self.settings_tab.setLayout(layout)
+        self.tabs.addTab(self.settings_tab, "Server Settings")
+
+    def setup_backup_tab(self):
+        self.backup_tab = QWidget()
+        layout = QVBoxLayout()
+        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setSpacing(15)
+        
+        # Backup Actions Group
+        backup_group = QGroupBox("Backup & Restore")
+        backup_layout = QVBoxLayout()
+        
+        btn_layout = QHBoxLayout()
+        self.create_backup_btn = QPushButton("Create Backup")
+        self.restore_backup_btn = QPushButton("Restore Backup")
+        self.download_backup_btn = QPushButton("Download Backup")
+        self.upload_backup_btn = QPushButton("Upload Backup")
+        
+        btn_layout.addWidget(self.create_backup_btn)
+        btn_layout.addWidget(self.restore_backup_btn)
+        btn_layout.addWidget(self.download_backup_btn)
+        btn_layout.addWidget(self.upload_backup_btn)
+        backup_layout.addLayout(btn_layout)
+        
+        # Backup List
+        self.backup_list = QListWidget()
+        self.backup_list.setSelectionMode(QAbstractItemView.SingleSelection)
+        backup_layout.addWidget(QLabel("Available Backups:"))
+        backup_layout.addWidget(self.backup_list)
+        
+        backup_group.setLayout(backup_layout)
+        layout.addWidget(backup_group)
+        
+        # Quick Setup Group
+        setup_group = QGroupBox("Quick Setup")
+        setup_layout = QVBoxLayout()
+        
+        setup_info = QLabel("""
+            <p>Quickly configure your server with pre-defined templates:</p>
+            <ul>
+                <li><b>Basic Setup:</b> Standard configuration with default settings</li>
+                <li><b>High Security:</b> Enhanced security settings with strict rules</li>
+                <li><b>Performance Optimized:</b> Tuned for maximum throughput</li>
+                <li><b>Multi-Protocol:</b> Supports multiple protocols (VLESS, VMess, Trojan)</li>
+            </ul>
+        """)
+        setup_info.setWordWrap(True)
+        setup_info.setOpenExternalLinks(True)
+        
+        template_layout = QHBoxLayout()
+        self.template_combo = QComboBox()
+        self.template_combo.addItems(["Basic Setup", "High Security", "Performance Optimized", "Multi-Protocol"])
+        self.apply_template_btn = QPushButton("Apply Template")
+        
+        template_layout.addWidget(self.template_combo)
+        template_layout.addWidget(self.apply_template_btn)
+        
+        setup_layout.addWidget(setup_info)
+        setup_layout.addLayout(template_layout)
+        setup_group.setLayout(setup_layout)
+        layout.addWidget(setup_group)
+        
+        self.backup_tab.setLayout(layout)
+        self.tabs.addTab(self.backup_tab, "Backup & Setup")
+
+    def setup_tray(self):
+        self.tray_icon = QSystemTrayIcon(self)
+        self.tray_icon.setIcon(self.style().standardIcon(QStyle.SP_ComputerIcon))
+        
+        tray_menu = QMenu()
+        show_action = QAction("Show", self)
+        hide_action = QAction("Hide", self)
+        quit_action = QAction("Quit", self)
+        
+        show_action.triggered.connect(self.show_normal)
+        hide_action.triggered.connect(self.hide)
+        quit_action.triggered.connect(self.close)
+        
+        tray_menu.addAction(show_action)
+        tray_menu.addAction(hide_action)
+        tray_menu.addSeparator()
+        tray_menu.addAction(quit_action)
+        
+        self.tray_icon.setContextMenu(tray_menu)
+        self.tray_icon.activated.connect(self.tray_icon_clicked)
+        self.tray_icon.show()
+
+    def setup_connections(self):
+        # Connection tab
+        self.connect_btn.clicked.connect(self.connect_to_server)
+        self.disconnect_btn.clicked.connect(self.disconnect_from_server)
+        
+        # Management tab
+        self.install_btn.clicked.connect(self.install_xray)
+        self.keys_btn.clicked.connect(self.generate_keys)
+        self.restart_btn.clicked.connect(self.restart_service)
+        self.geo_update_btn.clicked.connect(self.update_geo_data)
+        self.update_xray_btn.clicked.connect(self.update_xray)
+        self.add_user_btn.clicked.connect(self.add_user_dialog)
+        self.edit_user_btn.clicked.connect(self.edit_user_dialog)
+        self.delete_user_btn.clicked.connect(self.delete_users)
+        self.copy_config_btn.clicked.connect(self.copy_user_config)
+        self.export_config_btn.clicked.connect(self.export_user_config)
+        self.generate_qr_btn.clicked.connect(self.generate_qr_code)
+        self.users_list.itemSelectionChanged.connect(self.update_config_preview)
+        
+        # Stats tab
+        self.refresh_stats_btn.clicked.connect(self.refresh_stats)
+        self.auto_refresh_check.stateChanged.connect(self.toggle_auto_refresh)
+        
+        # Config editor tab
+        self.load_config_btn.clicked.connect(self.load_config_from_server)
+        self.save_config_btn.clicked.connect(self.save_config_locally)
+        self.upload_config_btn.clicked.connect(self.upload_config_to_server)
+        self.validate_config_btn.clicked.connect(self.validate_config)
+        self.apply_config_btn.clicked.connect(self.apply_config)
+        
+        # Server settings tab
+        self.apply_settings_btn.clicked.connect(self.apply_server_settings)
+        self.tls_check.stateChanged.connect(self.toggle_tls_mode)
+        
+        # Backup tab
+        self.create_backup_btn.clicked.connect(self.create_backup)
+        self.restore_backup_btn.clicked.connect(self.restore_backup)
+        self.download_backup_btn.clicked.connect(self.download_backup)
+        self.upload_backup_btn.clicked.connect(self.upload_backup)
+        self.apply_template_btn.clicked.connect(self.apply_template)
+
+    def connect_to_server(self):
+        host = self.host_input.text().strip()
+        port = self.port_input.value()
+        user = self.user_input.text().strip()
+        password = self.pass_input.text()
+        
+        if not all([host, user, password]):
+            self.log_message("Please fill all connection fields")
+            return
+            
+        self.server_info = {
+            'host': host,
+            'port': port,
+            'user': user,
+            'password': password
         }
+        
+        self.log_message(f"Connecting to {user}@{host}:{port}...")
+        self.set_ui_connecting_state(True)
+        
+        self.ssh_worker = SSHWorker(self.server_info, 'check_status')
+        self.ssh_worker.log_message.connect(self.log_message)
+        self.ssh_worker.operation_complete.connect(self.handle_connection_result)
+        self.ssh_worker.start()
 
-    private:
-        System::Windows::Forms::TextBox^ expressionBox;
-        System::Windows::Forms::Button^ btnSin;
-        System::Windows::Forms::Button^ btnCos;
-        System::Windows::Forms::Button^ btnTan;
-        System::Windows::Forms::Button^ btnCot;
-        System::Windows::Forms::Button^ btnSqrt;
-        System::Windows::Forms::Button^ btnPower;
-        System::Windows::Forms::Button^ btnOpenParen;
-        System::Windows::Forms::Button^ btnCloseParen;
-        System::Windows::Forms::Button^ btnBack;
-        System::Windows::Forms::Button^ btnClear;
-        System::Windows::Forms::Button^ btnEquals;
-        System::Windows::Forms::Button^ btnTrig;
-        System::Windows::Forms::Panel^ trigMenu;
-        System::Windows::Forms::Button^ btnMainForm;
-        System::Windows::Forms::Button^ btn0;
-        System::Windows::Forms::Button^ btn1;
-        System::Windows::Forms::Button^ btn2;
-        System::Windows::Forms::Button^ btn3;
-        System::Windows::Forms::Button^ btn4;
-        System::Windows::Forms::Button^ btn5;
-        System::Windows::Forms::Button^ btn6;
-        System::Windows::Forms::Button^ btn7;
-        System::Windows::Forms::Button^ btn8;
-        System::Windows::Forms::Button^ btn9;
-        System::Windows::Forms::Button^ btnPlus;
-        System::Windows::Forms::Button^ btnMinus;
-        System::Windows::Forms::Button^ btnMultiply;
-        System::Windows::Forms::Button^ btnDivide;
-        System::Windows::Forms::Button^ btnDot;
-        System::Windows::Forms::Button^ btnSign;
+    def handle_connection_result(self, result):
+        if 'error' in result:
+            self.log_message(f"Connection failed: {result['error']}")
+            self.set_ui_connecting_state(False)
+            return
+            
+        status = result.get('status', 'unknown')
+        self.log_message(f"Connected! XRay status: {status}")
+        
+        # Enable all tabs
+        for i in range(self.tabs.count()):
+            self.tabs.setTabEnabled(i, True)
+        
+        self.set_ui_connected_state(True)
+        
+        # Load initial data
+        self.update_users_list()
+        self.load_config_from_server()
+        
+        # Start stats refresh if auto-refresh is enabled
+        if self.auto_refresh_check.isChecked():
+            self.refresh_stats()
 
-        System::ComponentModel::Container^ components;
+    def disconnect_from_server(self):
+        if self.ssh_worker and self.ssh_worker.isRunning():
+            self.ssh_worker.stop()
+            
+        self.set_ui_connected_state(False)
+        self.log_message("Disconnected from server")
+        
+        # Disable all tabs except connection
+        for i in range(1, self.tabs.count()):
+            self.tabs.setTabEnabled(i, False)
+        
+        # Save session if checkbox is checked
+        if self.save_pass_check.isChecked():
+            self.save_session()
 
-#pragma region Windows Form Designer generated code
-        void InitializeComponent(void)
-        {
-            this->expressionBox = (gcnew System::Windows::Forms::TextBox());
-            this->btnSin = (gcnew System::Windows::Forms::Button());
-            this->btnCos = (gcnew System::Windows::Forms::Button());
-            this->btnTan = (gcnew System::Windows::Forms::Button());
-            this->btnCot = (gcnew System::Windows::Forms::Button());
-            this->btnSqrt = (gcnew System::Windows::Forms::Button());
-            this->btnPower = (gcnew System::Windows::Forms::Button());
-            this->btnOpenParen = (gcnew System::Windows::Forms::Button());
-            this->btnCloseParen = (gcnew System::Windows::Forms::Button());
-            this->btnBack = (gcnew System::Windows::Forms::Button());
-            this->btnClear = (gcnew System::Windows::Forms::Button());
-            this->btnEquals = (gcnew System::Windows::Forms::Button());
-            this->btnTrig = (gcnew System::Windows::Forms::Button());
-            this->trigMenu = (gcnew System::Windows::Forms::Panel());
-            this->btnMainForm = (gcnew System::Windows::Forms::Button());
-            this->btn0 = (gcnew System::Windows::Forms::Button());
-            this->btn1 = (gcnew System::Windows::Forms::Button());
-            this->btn2 = (gcnew System::Windows::Forms::Button());
-            this->btn3 = (gcnew System::Windows::Forms::Button());
-            this->btn4 = (gcnew System::Windows::Forms::Button());
-            this->btn5 = (gcnew System::Windows::Forms::Button());
-            this->btn6 = (gcnew System::Windows::Forms::Button());
-            this->btn7 = (gcnew System::Windows::Forms::Button());
-            this->btn8 = (gcnew System::Windows::Forms::Button());
-            this->btn9 = (gcnew System::Windows::Forms::Button());
-            this->btnPlus = (gcnew System::Windows::Forms::Button());
-            this->btnMinus = (gcnew System::Windows::Forms::Button());
-            this->btnMultiply = (gcnew System::Windows::Forms::Button());
-            this->btnDivide = (gcnew System::Windows::Forms::Button());
-            this->btnDot = (gcnew System::Windows::Forms::Button());
-            this->btnSign = (gcnew System::Windows::Forms::Button());
-            this->trigMenu->SuspendLayout();
-            this->SuspendLayout();
-            // 
-            // expressionBox
-            // 
-            this->expressionBox->Font = (gcnew System::Drawing::Font(L"Microsoft Sans Serif", 18, System::Drawing::FontStyle::Regular, System::Drawing::GraphicsUnit::Point, 
-                static_cast<System::Byte>(204)));
-            this->expressionBox->Location = System::Drawing::Point(12, 12);
-            this->expressionBox->Multiline = true;
-            this->expressionBox->Name = L"expressionBox";
-            this->expressionBox->Size = System::Drawing::Size(460, 40);
-            this->expressionBox->TabIndex = 0;
-            this->expressionBox->TextAlign = System::Windows::Forms::HorizontalAlignment::Right;
-            // 
-            // btnSin
-            // 
-            this->btnSin->Location = System::Drawing::Point(12, 70);
-            this->btnSin->Name = L"btnSin";
-            this->btnSin->Size = System::Drawing::Size(75, 40);
-            this->btnSin->TabIndex = 1;
-            this->btnSin->Text = L"sin";
-            this->btnSin->UseVisualStyleBackColor = true;
-            this->btnSin->Click += gcnew System::EventHandler(this, &large_form::btnSin_Click);
-            // 
-            // btnCos
-            // 
-            this->btnCos->Location = System::Drawing::Point(93, 70);
-            this->btnCos->Name = L"btnCos";
-            this->btnCos->Size = System::Drawing::Size(75, 40);
-            this->btnCos->TabIndex = 2;
-            this->btnCos->Text = L"cos";
-            this->btnCos->UseVisualStyleBackColor = true;
-            this->btnCos->Click += gcnew System::EventHandler(this, &large_form::btnCos_Click);
-            // 
-            // btnTan
-            // 
-            this->btnTan->Location = System::Drawing::Point(174, 70);
-            this->btnTan->Name = L"btnTan";
-            this->btnTan->Size = System::Drawing::Size(75, 40);
-            this->btnTan->TabIndex = 3;
-            this->btnTan->Text = L"tan";
-            this->btnTan->UseVisualStyleBackColor = true;
-            this->btnTan->Click += gcnew System::EventHandler(this, &large_form::btnTan_Click);
-            // 
-            // btnCot
-            // 
-            this->btnCot->Location = System::Drawing::Point(255, 70);
-            this->btnCot->Name = L"btnCot";
-            this->btnCot->Size = System::Drawing::Size(75, 40);
-            this->btnCot->TabIndex = 4;
-            this->btnCot->Text = L"cot";
-            this->btnCot->UseVisualStyleBackColor = true;
-            this->btnCot->Click += gcnew System::EventHandler(this, &large_form::btnCot_Click);
-            // 
-            // btnSqrt
-            // 
-            this->btnSqrt->Location = System::Drawing::Point(336, 70);
-            this->btnSqrt->Name = L"btnSqrt";
-            this->btnSqrt->Size = System::Drawing::Size(75, 40);
-            this->btnSqrt->TabIndex = 5;
-            this->btnSqrt->Text = L"√";
-            this->btnSqrt->UseVisualStyleBackColor = true;
-            this->btnSqrt->Click += gcnew System::EventHandler(this, &large_form::btnSqrt_Click);
-            // 
-            // btnPower
-            // 
-            this->btnPower->Location = System::Drawing::Point(417, 70);
-            this->btnPower->Name = L"btnPower";
-            this->btnPower->Size = System::Drawing::Size(75, 40);
-            this->btnPower->TabIndex = 6;
-            this->btnPower->Text = L"^";
-            this->btnPower->UseVisualStyleBackColor = true;
-            this->btnPower->Click += gcnew System::EventHandler(this, &large_form::btnPower_Click);
-            // 
-            // btnOpenParen
-            // 
-            this->btnOpenParen->Location = System::Drawing::Point(12, 116);
-            this->btnOpenParen->Name = L"btnOpenParen";
-            this->btnOpenParen->Size = System::Drawing::Size(75, 40);
-            this->btnOpenParen->TabIndex = 7;
-            this->btnOpenParen->Text = L"(";
-            this->btnOpenParen->UseVisualStyleBackColor = true;
-            this->btnOpenParen->Click += gcnew System::EventHandler(this, &large_form::btnOpenParen_Click);
-            // 
-            // btnCloseParen
-            // 
-            this->btnCloseParen->Location = System::Drawing::Point(93, 116);
-            this->btnCloseParen->Name = L"btnCloseParen";
-            this->btnCloseParen->Size = System::Drawing::Size(75, 40);
-            this->btnCloseParen->TabIndex = 8;
-            this->btnCloseParen->Text = L")";
-            this->btnCloseParen->UseVisualStyleBackColor = true;
-            this->btnCloseParen->Click += gcnew System::EventHandler(this, &large_form::btnCloseParen_Click);
-            // 
-            // btnBack
-            // 
-            this->btnBack->Location = System::Drawing::Point(174, 116);
-            this->btnBack->Name = L"btnBack";
-            this->btnBack->Size = System::Drawing::Size(75, 40);
-            this->btnBack->TabIndex = 9;
-            this->btnBack->Text = L"←";
-            this->btnBack->UseVisualStyleBackColor = true;
-            this->btnBack->Click += gcnew System::EventHandler(this, &large_form::btnBack_Click);
-            // 
-            // btnClear
-            // 
-            this->btnClear->Location = System::Drawing::Point(255, 116);
-            this->btnClear->Name = L"btnClear";
-            this->btnClear->Size = System::Drawing::Size(75, 40);
-            this->btnClear->TabIndex = 10;
-            this->btnClear->Text = L"C";
-            this->btnClear->UseVisualStyleBackColor = true;
-            this->btnClear->Click += gcnew System::EventHandler(this, &large_form::btnClear_Click);
-            // 
-            // btnEquals
-            // 
-            this->btnEquals->Location = System::Drawing::Point(336, 116);
-            this->btnEquals->Name = L"btnEquals";
-            this->btnEquals->Size = System::Drawing::Size(156, 40);
-            this->btnEquals->TabIndex = 11;
-            this->btnEquals->Text = L"=";
-            this->btnEquals->UseVisualStyleBackColor = true;
-            this->btnEquals->Click += gcnew System::EventHandler(this, &large_form::btnEquals_Click);
-            // 
-            // btnTrig
-            // 
-            this->btnTrig->Location = System::Drawing::Point(417, 116);
-            this->btnTrig->Name = L"btnTrig";
-            this->btnTrig->Size = System::Drawing::Size(75, 40);
-            this->btnTrig->TabIndex = 12;
-            this->btnTrig->Text = L"Trig";
-            this->btnTrig->UseVisualStyleBackColor = true;
-            this->btnTrig->Click += gcnew System::EventHandler(this, &large_form::btnTrig_Click);
-            // 
-            // trigMenu
-            // 
-            this->trigMenu->Controls->Add(this->btnSin);
-            this->trigMenu->Controls->Add(this->btnCos);
-            this->trigMenu->Controls->Add(this->btnTan);
-            this->trigMenu->Controls->Add(this->btnCot);
-            this->trigMenu->Location = System::Drawing::Point(12, 70);
-            this->trigMenu->Name = L"trigMenu";
-            this->trigMenu->Size = System::Drawing::Size(318, 40);
-            this->trigMenu->TabIndex = 13;
-            // 
-            // btnMainForm
-            // 
-            this->btnMainForm->Location = System::Drawing::Point(12, 380);
-            this->btnMainForm->Name = L"btnMainForm";
-            this->btnMainForm->Size = System::Drawing::Size(100, 30);
-            this->btnMainForm->TabIndex = 14;
-            this->btnMainForm->Text = L"Basic Calc";
-            this->btnMainForm->UseVisualStyleBackColor = true;
-            this->btnMainForm->Click += gcnew System::EventHandler(this, &large_form::btnMainForm_Click);
-            // 
-            // btn0
-            // 
-            this->btn0->Location = System::Drawing::Point(93, 324);
-            this->btn0->Name = L"btn0";
-            this->btn0->Size = System::Drawing::Size(75, 40);
-            this->btn0->TabIndex = 15;
-            this->btn0->Text = L"0";
-            this->btn0->UseVisualStyleBackColor = true;
-            this->btn0->Click += gcnew System::EventHandler(this, &large_form::NumberButton_Click);
-            // 
-            // btn1
-            // 
-            this->btn1->Location = System::Drawing::Point(12, 278);
-            this->btn1->Name = L"btn1";
-            this->btn1->Size = System::Drawing::Size(75, 40);
-            this->btn1->TabIndex = 16;
-            this->btn1->Text = L"1";
-            this->btn1->UseVisualStyleBackColor = true;
-            this->btn1->Click += gcnew System::EventHandler(this, &large_form::NumberButton_Click);
-            // 
-            // btn2
-            // 
-            this->btn2->Location = System::Drawing::Point(93, 278);
-            this->btn2->Name = L"btn2";
-            this->btn2->Size = System::Drawing::Size(75, 40);
-            this->btn2->TabIndex = 17;
-            this->btn2->Text = L"2";
-            this->btn2->UseVisualStyleBackColor = true;
-            this->btn2->Click += gcnew System::EventHandler(this, &large_form::NumberButton_Click);
-            // 
-            // btn3
-            // 
-            this->btn3->Location = System::Drawing::Point(174, 278);
-            this->btn3->Name = L"btn3";
-            this->btn3->Size = System::Drawing::Size(75, 40);
-            this->btn3->TabIndex = 18;
-            this->btn3->Text = L"3";
-            this->btn3->UseVisualStyleBackColor = true;
-            this->btn3->Click += gcnew System::EventHandler(this, &large_form::NumberButton_Click);
-            // 
-            // btn4
-            // 
-            this->btn4->Location = System::Drawing::Point(12, 232);
-            this->btn4->Name = L"btn4";
-            this->btn4->Size = System::Drawing::Size(75, 40);
-            this->btn4->TabIndex = 19;
-            this->btn4->Text = L"4";
-            this->btn4->UseVisualStyleBackColor = true;
-            this->btn4->Click += gcnew System::EventHandler(this, &large_form::NumberButton_Click);
-            // 
-            // btn5
-            // 
-            this->btn5->Location = System::Drawing::Point(93, 232);
-            this->btn5->Name = L"btn5";
-            this->btn5->Size = System::Drawing::Size(75, 40);
-            this->btn5->TabIndex = 20;
-            this->btn5->Text = L"5";
-            this->btn5->UseVisualStyleBackColor = true;
-            this->btn5->Click += gcnew System::EventHandler(this, &large_form::NumberButton_Click);
-            // 
-            // btn6
-            // 
-            this->btn6->Location = System::Drawing::Point(174, 232);
-            this->btn6->Name = L"btn6";
-            this->btn6->Size = System::Drawing::Size(75, 40);
-            this->btn6->TabIndex = 21;
-            this->btn6->Text = L"6";
-            this->btn6->UseVisualStyleBackColor = true;
-            this->btn6->Click += gcnew System::EventHandler(this, &large_form::NumberButton_Click);
-            // 
-            // btn7
-            // 
-            this->btn7->Location = System::Drawing::Point(12, 186);
-            this->btn7->Name = L"btn7";
-            this->btn7->Size = System::Drawing::Size(75, 40);
-            this->btn7->TabIndex = 22;
-            this->btn7->Text = L"7";
-            this->btn7->UseVisualStyleBackColor = true;
-            this->btn7->Click += gcnew System::EventHandler(this, &large_form::NumberButton_Click);
-            // 
-            // btn8
-            // 
-            this->btn8->Location = System::Drawing::Point(93, 186);
-            this->btn8->Name = L"btn8";
-            this->btn8->Size = System::Drawing::Size(75, 40);
-            this->btn8->TabIndex = 23;
-            this->btn8->Text = L"8";
-            this->btn8->UseVisualStyleBackColor = true;
-            this->btn8->Click += gcnew System::EventHandler(this, &large_form::NumberButton_Click);
-            // 
-            // btn9
-            // 
-            this->btn9->Location = System::Drawing::Point(174, 186);
-            this->btn9->Name = L"btn9";
-            this->btn9->Size = System::Drawing::Size(75, 40);
-            this->btn9->TabIndex = 24;
-            this->btn9->Text = L"9";
-            this->btn9->UseVisualStyleBackColor = true;
-            this->btn9->Click += gcnew System::EventHandler(this, &large_form::NumberButton_Click);
-            // 
-            // btnPlus
-            // 
-            this->btnPlus->Location = System::Drawing::Point(255, 186);
-            this->btnPlus->Name = L"btnPlus";
-            this->btnPlus->Size = System::Drawing::Size(75, 40);
-            this->btnPlus->TabIndex = 25;
-            this->btnPlus->Text = L"+";
-            this->btnPlus->UseVisualStyleBackColor = true;
-            this->btnPlus->Click += gcnew System::EventHandler(this, &large_form::OperatorButton_Click);
-            // 
-            // btnMinus
-            // 
-            this->btnMinus->Location = System::Drawing::Point(255, 232);
-            this->btnMinus->Name = L"btnMinus";
-            this->btnMinus->Size = System::Drawing::Size(75, 40);
-            this->btnMinus->TabIndex = 26;
-            this->btnMinus->Text = L"-";
-            this->btnMinus->UseVisualStyleBackColor = true;
-            this->btnMinus->Click += gcnew System::EventHandler(this, &large_form::OperatorButton_Click);
-            // 
-            // btnMultiply
-            // 
-            this->btnMultiply->Location = System::Drawing::Point(255, 278);
-            this->btnMultiply->Name = L"btnMultiply";
-            this->btnMultiply->Size = System::Drawing::Size(75, 40);
-            this->btnMultiply->TabIndex = 27;
-            this->btnMultiply->Text = L"*";
-            this->btnMultiply->UseVisualStyleBackColor = true;
-            this->btnMultiply->Click += gcnew System::EventHandler(this, &large_form::OperatorButton_Click);
-            // 
-            // btnDivide
-            // 
-            this->btnDivide->Location = System::Drawing::Point(255, 324);
-            this->btnDivide->Name = L"btnDivide";
-            this->btnDivide->Size = System::Drawing::Size(75, 40);
-            this->btnDivide->TabIndex = 28;
-            this->btnDivide->Text = L"/";
-            this->btnDivide->UseVisualStyleBackColor = true;
-            this->btnDivide->Click += gcnew System::EventHandler(this, &large_form::OperatorButton_Click);
-            // 
-            // btnDot
-            // 
-            this->btnDot->Location = System::Drawing::Point(174, 324);
-            this->btnDot->Name = L"btnDot";
-            this->btnDot->Size = System::Drawing::Size(75, 40);
-            this->btnDot->TabIndex = 29;
-            this->btnDot->Text = L".";
-            this->btnDot->UseVisualStyleBackColor = true;
-            this->btnDot->Click += gcnew System::EventHandler(this, &large_form::btnDot_Click);
-            // 
-            // btnSign
-            // 
-            this->btnSign->Location = System::Drawing::Point(12, 324);
-            this->btnSign->Name = L"btnSign";
-            this->btnSign->Size = System::Drawing::Size(75, 40);
-            this->btnSign->TabIndex = 30;
-            this->btnSign->Text = L"+/-";
-            this->btnSign->UseVisualStyleBackColor = true;
-            this->btnSign->Click += gcnew System::EventHandler(this, &large_form::btnSign_Click);
-            // 
-            // large_form
-            // 
-            this->AutoScaleDimensions = System::Drawing::SizeF(8, 16);
-            this->AutoScaleMode = System::Windows::Forms::AutoScaleMode::Font;
-            this->ClientSize = System::Drawing::Size(484, 422);
-            this->Controls->Add(this->btnSign);
-            this->Controls->Add(this->btnDot);
-            this->Controls->Add(this->btnDivide);
-            this->Controls->Add(this->btnMultiply);
-            this->Controls->Add(this->btnMinus);
-            this->Controls->Add(this->btnPlus);
-            this->Controls->Add(this->btn9);
-            this->Controls->Add(this->btn8);
-            this->Controls->Add(this->btn7);
-            this->Controls->Add(this->btn6);
-            this->Controls->Add(this->btn5);
-            this->Controls->Add(this->btn4);
-            this->Controls->Add(this->btn3);
-            this->Controls->Add(this->btn2);
-            this->Controls->Add(this->btn1);
-            this->Controls->Add(this->btn0);
-            this->Controls->Add(this->btnMainForm);
-            this->Controls->Add(this->trigMenu);
-            this->Controls->Add(this->btnTrig);
-            this->Controls->Add(this->btnEquals);
-            this->Controls->Add(this->btnClear);
-            this->Controls->Add(this->btnBack);
-            this->Controls->Add(this->btnCloseParen);
-            this->Controls->Add(this->btnOpenParen);
-            this->Controls->Add(this->btnPower);
-            this->Controls->Add(this->btnSqrt);
-            this->Controls->Add(this->btnCot);
-            this->Controls->Add(this->btnTan);
-            this->Controls->Add(this->btnCos);
-            this->Controls->Add(this->btnSin);
-            this->Controls->Add(this->expressionBox);
-            this->Name = L"large_form";
-            this->Text = L"Advanced Calculator";
-            this->trigMenu->ResumeLayout(false);
-            this->ResumeLayout(false);
-            this->PerformLayout();
+    def install_xray(self):
+        reply = QMessageBox.question(
+            self, "Confirm Installation",
+            "This will install XRay on the server. Continue?",
+            QMessageBox.Yes | QMessageBox.No
+        )
+        
+        if reply == QMessageBox.Yes:
+            self.log_message("Starting XRay installation...")
+            self.ssh_worker = SSHWorker(self.server_info, 'install_xray')
+            self.ssh_worker.log_message.connect(self.log_message)
+            self.ssh_worker.progress_update.connect(self.update_progress)
+            self.ssh_worker.operation_complete.connect(self.install_complete)
+            self.ssh_worker.start()
 
+    def install_complete(self, result):
+        if 'error' in result:
+            self.log_message(f"Installation failed: {result['error']}")
+        else:
+            self.log_message("XRay installed successfully!")
+            self.generate_keys()
+
+    def generate_keys(self):
+        self.log_message("Generating new keys...")
+        self.ssh_worker = SSHWorker(self.server_info, 'generate_keys')
+        self.ssh_worker.log_message.connect(self.log_message)
+        self.ssh_worker.operation_complete.connect(self.keys_generated)
+        self.ssh_worker.start()
+
+    def keys_generated(self, result):
+        if 'error' in result:
+            self.log_message(f"Key generation failed: {result['error']}")
+        else:
+            self.log_message("New keys generated successfully!")
+            self.log_message(f"Private Key: {result['private_key']}")
+            self.log_message(f"Public Key: {result['public_key']}")
+            self.update_users_list()
+
+    def restart_service(self):
+        self.log_message("Restarting XRay service...")
+        self.ssh_worker = SSHWorker(self.server_info, 'restart_service')
+        self.ssh_worker.log_message.connect(self.log_message)
+        self.ssh_worker.operation_complete.connect(self.service_restarted)
+        self.ssh_worker.start()
+
+    def service_restarted(self, result):
+        if 'error' in result:
+            self.log_message(f"Service restart failed: {result['error']}")
+        else:
+            self.log_message("XRay service restarted successfully!")
+
+    def update_geo_data(self):
+        self.log_message("Updating geo data...")
+        self.ssh_worker = SSHWorker(self.server_info, 'update_geo')
+        self.ssh_worker.log_message.connect(self.log_message)
+        self.ssh_worker.operation_complete.connect(self.geo_update_complete)
+        self.ssh_worker.start()
+
+    def geo_update_complete(self, result):
+        if 'error' in result:
+            self.log_message(f"Geo update failed: {result['error']}")
+        else:
+            self.log_message("Geo data updated successfully!")
+
+    def update_xray(self):
+        self.log_message("Updating XRay...")
+        self.ssh_worker = SSHWorker(self.server_info, 'update_xray')
+        self.ssh_worker.log_message.connect(self.log_message)
+        self.ssh_worker.operation_complete.connect(self.xray_updated)
+        self.ssh_worker.start()
+
+    def xray_updated(self, result):
+        if 'error' in result:
+            self.log_message(f"Update failed: {result['error']}")
+        else:
+            self.log_message("XRay updated successfully!")
+
+    def update_users_list(self):
+        self.log_message("Updating users list...")
+        self.ssh_worker = SSHWorker(self.server_info, 'list_users')
+        self.ssh_worker.log_message.connect(self.log_message)
+        self.ssh_worker.operation_complete.connect(self.users_list_updated)
+        self.ssh_worker.start()
+
+    def users_list_updated(self, result):
+        if 'error' in result:
+            self.log_message(f"Failed to get users: {result['error']}")
+        else:
+            self.current_users = result.get('users', [])
+            self.current_settings = result.get('settings', {})
+            
+            self.users_list.clear()
+            for user in self.current_users:
+                item = QTreeWidgetItem([
+                    user['uuid'],
+                    user.get('email', ''),
+                    user.get('created', ''),
+                    user.get('expiry', ''),
+                    str(user.get('traffic', 0))
+                ])
+                self.users_list.addTopLevelItem(item)
+            
+            self.log_message(f"Found {len(self.current_users)} users")
+
+    def add_user_dialog(self):
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Add New User")
+        dialog.setMinimumWidth(400)
+        layout = QVBoxLayout()
+        
+        # User Type
+        type_layout = QHBoxLayout()
+        type_layout.addWidget(QLabel("User Type:"))
+        self.user_type_combo = QComboBox()
+        self.user_type_combo.addItems(["Standard", "Trial (7 days)", "Premium (30 days)", "Custom"])
+        type_layout.addWidget(self.user_type_combo)
+        layout.addLayout(type_layout)
+        
+        # Duration (visible only for custom)
+        self.duration_layout = QHBoxLayout()
+        self.duration_layout.addWidget(QLabel("Duration (days):"))
+        self.duration_input = QSpinBox()
+        self.duration_input.setRange(1, 365)
+        self.duration_input.setValue(30)
+        self.duration_layout.addWidget(self.duration_input)
+        self.duration_layout.setVisible(False)
+        layout.addLayout(self.duration_layout)
+        
+        # UUID
+        uuid_layout = QHBoxLayout()
+        uuid_layout.addWidget(QLabel("UUID:"))
+        self.uuid_input = QLineEdit(str(uuid.uuid4()))
+        self.uuid_input.setReadOnly(True)
+        uuid_layout.addWidget(self.uuid_input)
+        layout.addLayout(uuid_layout)
+        
+        # Email
+        email_layout = QHBoxLayout()
+        email_layout.addWidget(QLabel("Email/Name:"))
+        self.email_input = QLineEdit()
+        self.email_input.setPlaceholderText("Optional identifier")
+        email_layout.addWidget(self.email_input)
+        layout.addLayout(email_layout)
+        
+        # Expiry (for custom)
+        self.expiry_layout = QHBoxLayout()
+        self.expiry_layout.addWidget(QLabel("Expiry Date:"))
+        self.expiry_input = QDateEdit()
+        self.expiry_input.setDate(datetime.date.today() + datetime.timedelta(days=30))
+        self.expiry_input.setCalendarPopup(True)
+        self.expiry_layout.addWidget(self.expiry_input)
+        self.expiry_layout.setVisible(False)
+        layout.addLayout(self.expiry_layout)
+        
+        # Buttons
+        btn_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        btn_box.accepted.connect(dialog.accept)
+        btn_box.rejected.connect(dialog.reject)
+        
+        layout.addWidget(btn_box)
+        dialog.setLayout(layout)
+        
+        # Connect type change
+        self.user_type_combo.currentTextChanged.connect(self.update_user_type_fields)
+        
+        if dialog.exec_() == QDialog.Accepted:
+            uuid_val = self.uuid_input.text()
+            email = self.email_input.text().strip()
+            
+            duration = 0
+            expiry = ""
+            
+            user_type = self.user_type_combo.currentText()
+            if user_type == "Trial (7 days)":
+                duration = 7
+            elif user_type == "Premium (30 days)":
+                duration = 30
+            elif user_type == "Custom":
+                if self.duration_layout.isVisible():
+                    duration = self.duration_input.value()
+                else:
+                    expiry = self.expiry_input.date().toString("yyyy-MM-dd")
+            
+            self.add_user(uuid_val, email, expiry, duration)
+
+    def update_user_type_fields(self, user_type):
+        if user_type == "Custom":
+            self.duration_layout.setVisible(True)
+            self.expiry_layout.setVisible(True)
+        elif user_type in ["Trial (7 days)", "Premium (30 days)"]:
+            self.duration_layout.setVisible(False)
+            self.expiry_layout.setVisible(False)
+        else:  # Standard
+            self.duration_layout.setVisible(False)
+            self.expiry_layout.setVisible(False)
+
+    def add_user(self, uuid_val, email, expiry, duration):
+        self.ssh_worker = SSHWorker(self.server_info, 'add_user')
+        self.ssh_worker.additional_data = {
+            'uuid': uuid_val,
+            'email': email,
+            'expiry': expiry,
+            'duration': duration
         }
-#pragma endregion
+        self.ssh_worker.log_message.connect(self.log_message)
+        self.ssh_worker.operation_complete.connect(self.user_added)
+        self.ssh_worker.start()
 
-    private:
-        void InitializeTrigMenu()
-        {
-            // Trig menu is already initialized in InitializeComponent
+    def user_added(self, result):
+        if 'error' in result:
+            self.log_message(f"Failed to add user: {result['error']}")
+        else:
+            self.log_message(f"User added: {result['uuid']}")
+            self.update_users_list()
+            
+            # Show config for new user
+            if 'public_key' in result:
+                config = self.generate_user_config(
+                    result['uuid'],
+                    result['public_key'],
+                    result.get('email', '')
+                )
+                self.config_preview.setPlainText(config)
+                self.generate_qr_code(config)
+                QApplication.clipboard().setText(config)
+                self.log_message("Config copied to clipboard!")
+
+    def edit_user_dialog(self):
+        selected = self.users_list.selectedItems()
+        if not selected:
+            QMessageBox.warning(self, "No Selection", "Please select a user to edit")
+            return
+            
+        item = selected[0]
+        uuid_val = item.text(0)
+        email = item.text(1)
+        expiry = item.text(3)
+        
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Edit User")
+        dialog.setMinimumWidth(400)
+        layout = QVBoxLayout()
+        
+        # UUID
+        uuid_layout = QHBoxLayout()
+        uuid_layout.addWidget(QLabel("UUID:"))
+        uuid_input = QLineEdit(uuid_val)
+        uuid_input.setReadOnly(True)
+        uuid_layout.addWidget(uuid_input)
+        layout.addLayout(uuid_layout)
+        
+        # Email
+        email_layout = QHBoxLayout()
+        email_layout.addWidget(QLabel("Email/Name:"))
+        email_input = QLineEdit(email)
+        email_layout.addWidget(email_input)
+        layout.addLayout(email_layout)
+        
+        # Expiry
+        expiry_layout = QHBoxLayout()
+        expiry_layout.addWidget(QLabel("Expiry Date:"))
+        expiry_input = QDateEdit()
+        if expiry:
+            expiry_date = QDate.fromString(expiry, "yyyy-MM-dd")
+            expiry_input.setDate(expiry_date)
+        else:
+            expiry_input.setDate(datetime.date.today() + datetime.timedelta(days=30))
+        expiry_input.setCalendarPopup(True)
+        expiry_layout.addWidget(expiry_input)
+        layout.addLayout(expiry_layout)
+        
+        # Buttons
+        btn_box = QDialogButtonBox(QDialogButtonBox.Save | QDialogButtonBox.Cancel)
+        btn_box.accepted.connect(dialog.accept)
+        btn_box.rejected.connect(dialog.reject)
+        
+        layout.addWidget(btn_box)
+        dialog.setLayout(layout)
+        
+        if dialog.exec_() == QDialog.Accepted:
+            new_email = email_input.text().strip()
+            new_expiry = expiry_input.date().toString("yyyy-MM-dd")
+            
+            # We need to delete and re-add the user to update
+            self.ssh_worker = SSHWorker(self.server_info, 'delete_user')
+            self.ssh_worker.additional_data = {'uuid': uuid_val}
+            self.ssh_worker.log_message.connect(self.log_message)
+            self.ssh_worker.operation_complete.connect(
+                lambda: self.add_edited_user(uuid_val, new_email, new_expiry)
+            )
+            self.ssh_worker.start()
+            dialog.close()
+
+    def add_edited_user(self, uuid_val, email, expiry):
+        self.ssh_worker = SSHWorker(self.server_info, 'add_user')
+        self.ssh_worker.additional_data = {
+            'uuid': uuid_val,
+            'email': email,
+            'expiry': expiry,
+            'duration': 0
         }
+        self.ssh_worker.log_message.connect(self.log_message)
+        self.ssh_worker.operation_complete.connect(self.user_added)
+        self.ssh_worker.start()
 
-        double EvaluateExpression(System::String^ expression)
-        {
-            try
-            {
-                // Convert System::String to std::string
-                std::string expr = msclr::interop::marshal_as<std::string>(expression);
+    def delete_users(self):
+        selected_items = self.users_list.selectedItems()
+        if not selected_items:
+            QMessageBox.warning(self, "No Selection", "Please select users to delete")
+            return
+            
+        uuids = [item.text(0) for item in selected_items]
+        
+        reply = QMessageBox.question(
+            self, "Confirm Deletion",
+            f"Delete {len(uuids)} selected users?",
+            QMessageBox.Yes | QMessageBox.No
+        )
+        
+        if reply == QMessageBox.Yes:
+            for uuid_val in uuids:
+                self.ssh_worker = SSHWorker(self.server_info, 'delete_user')
+                self.ssh_worker.additional_data = {'uuid': uuid_val}
+                self.ssh_worker.log_message.connect(self.log_message)
+                self.ssh_worker.operation_complete.connect(self.user_deleted)
+                self.ssh_worker.start()
 
-                // Remove all whitespace
-                expr.erase(std::remove_if(expr.begin(), expr.end(), ::isspace), expr.end());
+    def user_deleted(self, result):
+        if 'error' in result:
+            self.log_message(f"Failed to delete user: {result['error']}")
+        else:
+            self.log_message(f"User deleted: {result['uuid']}")
+            self.update_users_list()
 
-                std::stack<double> values;
-                std::stack<char> ops;
+    def update_config_preview(self):
+        selected = self.users_list.selectedItems()
+        if not selected:
+            return
+            
+        item = selected[0]
+        uuid_val = item.text(0)
+        
+        # Get public key
+        self.ssh_worker = SSHWorker(self.server_info, 'list_users')
+        self.ssh_worker.log_message.connect(self.log_message)
+        self.ssh_worker.operation_complete.connect(
+            lambda result: self.show_user_config(result, uuid_val)
+        )
+        self.ssh_worker.start()
 
-                for (size_t i = 0; i < expr.length(); i++) {
-                    if (expr[i] == ' ')
-                        continue;
+    def show_user_config(self, result, user_uuid):
+        if 'error' in result:
+            self.log_message(f"Failed to get config: {result['error']}")
+            return
+            
+        public_key = None
+        try:
+            with self.ssh_worker.sftp.file('/usr/local/etc/xray/public_key', 'r') as f:
+                public_key = f.read().decode()
+        except Exception as e:
+            self.log_message(f"Failed to get public key: {str(e)}")
+        
+        if public_key:
+            config = self.generate_user_config(
+                user_uuid,
+                public_key,
+                next((u.get('email', '') for u in result['users'] if u['uuid'] == user_uuid)
+            )
+            self.config_preview.setPlainText(config)
 
-                    if (expr[i] == '(') {
-                        ops.push(expr[i]);
-                    }
-                    else if (isdigit(expr[i]) || expr[i] == '.') {
-                        double val = 0;
-                        bool decimal = false;
-                        double decimalPlace = 0.1;
-                        bool negative = false;
+    def generate_user_config(self, uuid_val, public_key, email=''):
+        config = f"""vless://{uuid_val}@{self.server_info['host']}:{self.current_settings.get('port', 443)}?type=tcp&security=reality&sni={self.current_settings.get('sni', 'google.com')}&fp=chrome&pbk={public_key}&sid=aabbccdd&flow=xtls-rprx-vision#{email or 'xray-user'}"""
+        return config
 
-                        // Check for negative numbers
-                        if (i > 0 && expr[i - 1] == '-') {
-                            if (i == 1 || expr[i - 2] == '(' || 
-                                expr[i - 2] == '+' || expr[i - 2] == '-' || 
-                                expr[i - 2] == '*' || expr[i - 2] == '/') {
-                                negative = true;
-                                ops.pop(); // Remove the '-' from ops stack
+    def copy_user_config(self):
+        config = self.config_preview.toPlainText()
+        if config:
+            QApplication.clipboard().setText(config)
+            self.log_message("Config copied to clipboard!")
+
+    def export_user_config(self):
+        config = self.config_preview.toPlainText()
+        if not config:
+            return
+            
+        file_path, _ = QFileDialog.getSaveFileName(
+            self, "Save Config", "", "Text Files (*.txt);;All Files (*)"
+        )
+        
+        if file_path:
+            try:
+                with open(file_path, 'w') as f:
+                    f.write(config)
+                self.log_message(f"Config saved to {file_path}")
+            except Exception as e:
+                self.log_message(f"Failed to save file: {str(e)}")
+
+    def generate_qr_code(self, config_str=None):
+        if not config_str:
+            config_str = self.config_preview.toPlainText()
+            if not config_str:
+                return
+        
+        try:
+            # Generate QR code
+            qr = qrcode.QRCode(
+                version=1,
+                error_correction=qrcode.constants.ERROR_CORRECT_L,
+                box_size=6,
+                border=2,
+            )
+            qr.add_data(config_str)
+            qr.make(fit=True)
+            
+            img = qr.make_image(fill_color="black", back_color="white")
+            
+            # Convert to QPixmap
+            buffer = BytesIO()
+            img.save(buffer, format="PNG")
+            qimage = QImage()
+            qimage.loadFromData(buffer.getvalue(), "PNG")
+            pixmap = QPixmap.fromImage(qimage)
+            
+            # Scale if needed
+            if pixmap.width() > 300 or pixmap.height() > 300:
+                pixmap = pixmap.scaled(300, 300, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            
+            self.qr_label.setPixmap(pixmap)
+        except Exception as e:
+            self.log_message(f"Failed to generate QR code: {str(e)}")
+
+    def refresh_stats(self):
+        self.log_message("Refreshing statistics...")
+        self.ssh_worker = SSHWorker(self.server_info, 'get_stats')
+        self.ssh_worker.log_message.connect(self.log_message)
+        self.ssh_worker.operation_complete.connect(self.stats_updated)
+        self.ssh_worker.start()
+
+    def stats_updated(self, result):
+        if 'error' in result:
+            self.log_message(f"Failed to get stats: {result['error']}")
+        else:
+            stats = result.get('stats', [])
+            self.stats_table.setRowCount(len(stats))
+            
+            for i, stat in enumerate(stats):
+                name = stat.get('name', '')
+                stat_type = stat.get('type', '')
+                value = stat.get('value', 0)
+                
+                self.stats_table.setItem(i, 0, QTableWidgetItem(name))
+                self.stats_table.setItem(i, 1, QTableWidgetItem(stat_type))
+                self.stats_table.setItem(i, 2, QTableWidgetItem(str(value)))
+            
+            self.log_message("Statistics updated")
+
+    def toggle_auto_refresh(self, state):
+        if state == Qt.Checked:
+            interval = self.stats_interval.value() * 1000
+            self.auto_refresh_timer = QTimer(self)
+            self.auto_refresh_timer.timeout.connect(self.refresh_stats)
+            self.auto_refresh_timer.start(interval)
+            self.log_message(f"Auto-refresh enabled ({interval/1000} sec)")
+        else:
+            if self.auto_refresh_timer:
+                self.auto_refresh_timer.stop()
+                self.auto_refresh_timer = None
+            self.log_message("Auto-refresh disabled")
+
+    def load_config_from_server(self):
+        self.log_message("Loading config from server...")
+        self.ssh_worker = SSHWorker(self.server_info, 'get_config')
+        self.ssh_worker.log_message.connect(self.log_message)
+        self.ssh_worker.operation_complete.connect(self.config_loaded)
+        self.ssh_worker.start()
+
+    def config_loaded(self, result):
+        if 'error' in result:
+            self.log_message(f"Failed to load config: {result['error']}")
+        else:
+            self.config_editor.setPlainText(result['config'])
+            self.log_message("Config loaded to editor")
+
+    def save_config_locally(self):
+        config = self.config_editor.toPlainText()
+        if not config:
+            return
+            
+        try:
+            # Validate JSON
+            json.loads(config)
+        except json.JSONDecodeError as e:
+            QMessageBox.warning(self, "Invalid JSON", f"Config is not valid JSON: {str(e)}")
+            return
+            
+        file_path, _ = QFileDialog.getSaveFileName(
+            self, "Save Config", "", "JSON Files (*.json);;All Files (*)"
+        )
+        
+        if file_path:
+            try:
+                with open(file_path, 'w') as f:
+                    f.write(config)
+                self.log_message(f"Config saved to {file_path}")
+            except Exception as e:
+                self.log_message(f"Failed to save file: {str(e)}")
+
+    def upload_config_to_server(self):
+        config = self.config_editor.toPlainText()
+        if not config:
+            return
+            
+        try:
+            # Validate JSON
+            json.loads(config)
+        except json.JSONDecodeError as e:
+            QMessageBox.warning(self, "Invalid JSON", f"Config is not valid JSON: {str(e)}")
+            return
+            
+        reply = QMessageBox.question(
+            self, "Confirm Upload",
+            "This will overwrite server config and restart XRay. Continue?",
+            QMessageBox.Yes | QMessageBox.No
+        )
+        
+        if reply == QMessageBox.Yes:
+            self.ssh_worker = SSHWorker(self.server_info, 'apply_config')
+            self.ssh_worker.additional_data = {'config': config}
+            self.ssh_worker.log_message.connect(self.log_message)
+            self.ssh_worker.operation_complete.connect(self.config_uploaded)
+            self.ssh_worker.start()
+
+    def config_uploaded(self, result):
+        if 'error' in result:
+            self.log_message(f"Failed to upload config: {result['error']}")
+        else:
+            self.log_message("Config uploaded successfully!")
+            self.update_users_list()
+
+    def validate_config(self):
+        config = self.config_editor.toPlainText()
+        if not config:
+            return
+            
+        try:
+            json.loads(config)
+            QMessageBox.information(self, "Validation", "Config is valid JSON")
+        except json.JSONDecodeError as e:
+            QMessageBox.warning(self, "Validation Error", f"Invalid JSON: {str(e)}")
+
+    def apply_config(self):
+        self.upload_config_to_server()
+
+    def apply_server_settings(self):
+        port = self.port_input_setting.value()
+        sni = self.sni_input.text().strip()
+        tls_enabled = self.tls_check.isChecked()
+        
+        # Change port
+        if port != self.current_settings.get('port', 443):
+            self.ssh_worker = SSHWorker(self.server_info, 'change_port')
+            self.ssh_worker.additional_data = {'port': port}
+            self.ssh_worker.log_message.connect(self.log_message)
+            self.ssh_worker.operation_complete.connect(self.port_changed)
+            self.ssh_worker.start()
+        
+        # Change SNI
+        if sni and sni != self.current_settings.get('sni', 'google.com'):
+            self.ssh_worker = SSHWorker(self.server_info, 'change_sni')
+            self.ssh_worker.additional_data = {'sni': sni}
+            self.ssh_worker.log_message.connect(self.log_message)
+            self.ssh_worker.operation_complete.connect(self.sni_changed)
+            self.ssh_worker.start()
+        
+        # Toggle TLS
+        if tls_enabled != (self.current_settings.get('security', 'reality') == 'tls'):
+            self.ssh_worker = SSHWorker(self.server_info, 'toggle_tls')
+            self.ssh_worker.additional_data = {'enable': tls_enabled}
+            self.ssh_worker.log_message.connect(self.log_message)
+            self.ssh_worker.operation_complete.connect(self.tls_toggled)
+            self.ssh_worker.start()
+
+    def port_changed(self, result):
+        if 'error' in result:
+            self.log_message(f"Failed to change port: {result['error']}")
+        else:
+            self.log_message(result['message'])
+            self.current_settings['port'] = self.port_input_setting.value()
+            self.update_users_list()
+
+    def sni_changed(self, result):
+        if 'error' in result:
+            self.log_message(f"Failed to change SNI: {result['error']}")
+        else:
+            self.log_message(result['message'])
+            self.current_settings['sni'] = self.sni_input.text()
+            self.update_users_list()
+
+    def tls_toggled(self, result):
+        if 'error' in result:
+            self.log_message(f"Failed to toggle TLS: {result['error']}")
+        else:
+            self.log_message(result['message'])
+            self.current_settings['security'] = 'tls' if self.tls_check.isChecked() else 'reality'
+            self.update_users_list()
+
+    def toggle_tls_mode(self, state):
+        if state == Qt.Checked:
+            self.log_message("TLS mode enabled. Note: You need valid certificates for this to work.")
+        else:
+            self.log_message("TLS mode disabled. Switching to REALITY protocol.")
+
+    def create_backup(self):
+        file_path, _ = QFileDialog.getSaveFileName(
+            self, "Save Backup", "", "Backup Files (*.tar.gz);;All Files (*)"
+        )
+        
+        if file_path:
+            self.ssh_worker = SSHWorker(self.server_info, 'backup_config')
+            self.ssh_worker.additional_data = {'local_path': file_path}
+            self.ssh_worker.log_message.connect(self.log_message)
+            self.ssh_worker.operation_complete.connect(self.backup_created)
+            self.ssh_worker.start()
+
+    def backup_created(self, result):
+        if 'error' in result:
+            self.log_message(f"Failed to create backup: {result['error']}")
+        else:
+            self.log_message(result['message'])
+            self.backup_list.addItem(os.path.basename(result['path']))
+
+    def restore_backup(self):
+        selected = self.backup_list.currentItem()
+        if not selected:
+            QMessageBox.warning(self, "No Selection", "Please select a backup to restore")
+            return
+            
+        backup_name = selected.text()
+        file_path = os.path.join(os.path.expanduser("~"), backup_name)
+        
+        if not os.path.exists(file_path):
+            QMessageBox.warning(self, "File Not Found", f"Backup file not found: {file_path}")
+            return
+            
+        reply = QMessageBox.question(
+            self, "Confirm Restore",
+            "This will overwrite current configuration. Continue?",
+            QMessageBox.Yes | QMessageBox.No
+        )
+        
+        if reply == QMessageBox.Yes:
+            self.ssh_worker = SSHWorker(self.server_info, 'restore_config')
+            self.ssh_worker.additional_data = {'local_path': file_path}
+            self.ssh_worker.log_message.connect(self.log_message)
+            self.ssh_worker.operation_complete.connect(self.backup_restored)
+            self.ssh_worker.start()
+
+    def backup_restored(self, result):
+        if 'error' in result:
+            self.log_message(f"Failed to restore backup: {result['error']}")
+        else:
+            self.log_message(result['message'])
+            self.update_users_list()
+
+    def download_backup(self):
+        # Same as create_backup but with default name
+        default_name = f"xray_backup_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.tar.gz"
+        file_path, _ = QFileDialog.getSaveFileName(
+            self, "Save Backup", default_name, "Backup Files (*.tar.gz);;All Files (*)"
+        )
+        
+        if file_path:
+            self.ssh_worker = SSHWorker(self.server_info, 'backup_config')
+            self.ssh_worker.additional_data = {'local_path': file_path}
+            self.ssh_worker.log_message.connect(self.log_message)
+            self.ssh_worker.operation_complete.connect(self.backup_created)
+            self.ssh_worker.start()
+
+    def upload_backup(self):
+        file_path, _ = QFileDialog.getOpenFileName(
+            self, "Select Backup File", "", "Backup Files (*.tar.gz);;All Files (*)"
+        )
+        
+        if file_path:
+            self.restore_backup_from_file(file_path)
+
+    def restore_backup_from_file(self, file_path):
+        reply = QMessageBox.question(
+            self, "Confirm Restore",
+            "This will overwrite current configuration. Continue?",
+            QMessageBox.Yes | QMessageBox.No
+        )
+        
+        if reply == QMessageBox.Yes:
+            self.ssh_worker = SSHWorker(self.server_info, 'restore_config')
+            self.ssh_worker.additional_data = {'local_path': file_path}
+            self.ssh_worker.log_message.connect(self.log_message)
+            self.ssh_worker.operation_complete.connect(self.backup_restored)
+            self.ssh_worker.start()
+
+    def apply_template(self):
+        template = self.template_combo.currentText()
+        self.log_message(f"Applying template: {template}")
+        
+        # In a real app, you would load template from file or resource
+        # Here we'll just simulate with a message
+        self.ssh_worker = SSHWorker(self.server_info, 'apply_config')
+        
+        # Basic template config
+        if template == "Basic Setup":
+            config = {
+                "log": {
+                    "loglevel": "warning"
+                },
+                "inbounds": [
+                    {
+                        "tag": "proxy",
+                        "port": 443,
+                        "protocol": "vless",
+                        "settings": {
+                            "clients": [
+                                {"id": "EMPTY", "flow": "xtls-rprx-vision"}
+                            ],
+                            "decryption": "none"
+                        },
+                        "streamSettings": {
+                            "network": "tcp",
+                            "security": "reality",
+                            "realitySettings": {
+                                "dest": "google.com:443",
+                                "serverNames": ["google.com"],
+                                "privateKey": "YOUR_PRIVATE_KEY",
+                                "shortIds": ["aabbccdd"]
                             }
                         }
-
-                        while (i < expr.length() && (isdigit(expr[i]) || expr[i] == '.')) {
-                            if (expr[i] == '.') {
-                                decimal = true;
+                    }
+                ],
+                "outbounds": [
+                    {
+                        "protocol": "freedom",
+                        "tag": "direct"
+                    }
+                ]
+            }
+        elif template == "High Security":
+            config = {
+                "log": {
+                    "loglevel": "warning"
+                },
+                "inbounds": [
+                    {
+                        "tag": "proxy",
+                        "port": 443,
+                        "protocol": "vless",
+                        "settings": {
+                            "clients": [
+                                {"id": "EMPTY", "flow": "xtls-rprx-vision"}
+                            ],
+                            "decryption": "none"
+                        },
+                        "streamSettings": {
+                            "network": "tcp",
+                            "security": "reality",
+                            "realitySettings": {
+                                "dest": "google.com:443",
+                                "serverNames": ["google.com"],
+                                "privateKey": "YOUR_PRIVATE_KEY",
+                                "shortIds": ["aabbccdd"]
                             }
-                            else {
-                                if (!decimal) {
-                                    val = val * 10 + (expr[i] - '0');
-                                }
-                                else {
-                                    val = val + (expr[i] - '0') * decimalPlace;
-                                    decimalPlace /= 10;
-                                }
-                            }
-                            i++;
                         }
-
-                        if (negative) {
-                            val = -val;
-                        }
-
-                        values.push(val);
-                        i--;
                     }
-                    else if (expr[i] == ')') {
-                        while (!ops.empty() && ops.top() != '(') {
-                            double val2 = values.top();
-                            values.pop();
-
-                            double val1 = values.top();
-                            values.pop();
-
-                            char op = ops.top();
-                            ops.pop();
-
-                            values.push(ApplyOp(val1, val2, op));
-                        }
-
-                        if (!ops.empty())
-                            ops.pop(); // Remove '(' from stack
+                ],
+                "outbounds": [
+                    {
+                        "protocol": "freedom",
+                        "tag": "direct"
                     }
-                    else {
-                        while (!ops.empty() && Precedence(ops.top()) >= Precedence(expr[i])) {
-                            double val2 = values.top();
-                            values.pop();
-
-                            double val1 = values.top();
-                            values.pop();
-
-                            char op = ops.top();
-                            ops.pop();
-
-                            values.push(ApplyOp(val1, val2, op));
+                ],
+                "routing": {
+                    "domainStrategy": "IPIfNonMatch",
+                    "rules": [
+                        {
+                            "type": "field",
+                            "outboundTag": "block",
+                            "protocol": ["bittorrent"]
                         }
-
-                        ops.push(expr[i]);
-                    }
+                    ]
                 }
-
-                while (!ops.empty()) {
-                    double val2 = values.top();
-                    values.pop();
-
-                    double val1 = values.top();
-                    values.pop();
-
-                    char op = ops.top();
-                    ops.pop();
-
-                    values.push(ApplyOp(val1, val2, op));
-                }
-
-                return values.empty() ? 0 : values.top();
             }
-            catch (...)
-            {
-                throw gcnew System::Exception("Error evaluating expression");
+        else:
+            config = {
+                "log": {
+                    "loglevel": "warning"
+                },
+                "inbounds": [
+                    {
+                        "tag": "proxy",
+                        "port": 443,
+                        "protocol": "vless",
+                        "settings": {
+                            "clients": [
+                                {"id": "EMPTY", "flow": "xtls-rprx-vision"}
+                            ],
+                            "decryption": "none"
+                        },
+                        "streamSettings": {
+                            "network": "tcp",
+                            "security": "reality",
+                            "realitySettings": {
+                                "dest": "google.com:443",
+                                "serverNames": ["google.com"],
+                                "privateKey": "YOUR_PRIVATE_KEY",
+                                "shortIds": ["aabbccdd"]
+                            }
+                        }
+                    }
+                ],
+                "outbounds": [
+                    {
+                        "protocol": "freedom",
+                        "tag": "direct"
+                    }
+                ]
             }
-        }
+        
+        self.ssh_worker.additional_data = {'config': json.dumps(config, indent=2)}
+        self.ssh_worker.log_message.connect(self.log_message)
+        self.ssh_worker.operation_complete.connect(self.template_applied)
+        self.ssh_worker.start()
 
-        int Precedence(char op)
-        {
-            if (op == '+' || op == '-')
-                return 1;
-            if (op == '*' || op == '/')
-                return 2;
-            return 0;
-        }
+    def template_applied(self, result):
+        if 'error' in result:
+            self.log_message(f"Failed to apply template: {result['error']}")
+        else:
+            self.log_message("Template applied successfully!")
+            self.update_users_list()
 
-        double ApplyOp(double a, double b, char op)
-        {
-            switch (op) {
-            case '+': return a + b;
-            case '-': return a - b;
-            case '*': return a * b;
-            case '/': 
-                if (b == 0) throw gcnew System::DivideByZeroException();
-                return a / b;
-            }
-            return 0;
-        }
+    def set_ui_connecting_state(self, connecting):
+        self.connect_btn.setEnabled(not connecting)
+        self.disconnect_btn.setEnabled(False)
+        self.host_input.setEnabled(not connecting)
+        self.port_input.setEnabled(not connecting)
+        self.user_input.setEnabled(not connecting)
+        self.pass_input.setEnabled(not connecting)
+        
+        if connecting:
+            self.status_label.setText("Connecting...")
+            self.status_progress.setVisible(True)
+            self.status_progress.setRange(0, 0)  # Indeterminate progress
 
-    private:
-        System::Void btnMainForm_Click(System::Object^ sender, System::EventArgs^ e)
-        {
-            this->Close();
-        }
+    def set_ui_connected_state(self, connected):
+        self.connect_btn.setEnabled(not connected)
+        self.disconnect_btn.setEnabled(connected)
+        self.host_input.setEnabled(not connected)
+        self.port_input.setEnabled(not connected)
+        self.user_input.setEnabled(not connected)
+        self.pass_input.setEnabled(not connected)
+        
+        if connected:
+            self.status_label.setText(f"Connected to {self.server_info['user']}@{self.server_info['host']}")
+        else:
+            self.status_label.setText("Not connected")
+        
+        self.status_progress.setVisible(False)
 
-        System::Void NumberButton_Click(System::Object^ sender, System::EventArgs^ e)
-        {
-            Button^ button = safe_cast<Button^>(sender);
-            expressionBox->Text += button->Text;
-        }
+    def log_message(self, message):
+        timestamp = QDateTime.currentDateTime().toString("[hh:mm:ss]")
+        self.log_output.append(f"{timestamp} {message}")
+        self.log_output.moveCursor(QTextCursor.End)
+        logger.info(message)
 
-        System::Void OperatorButton_Click(System::Object^ sender, System::EventArgs^ e)
-        {
-            Button^ button = safe_cast<Button^>(sender);
-            expressionBox->Text += button->Text;
-        }
+    def update_progress(self, value, message):
+        self.status_bar.showMessage(message, 2000)
+        if value >= 0:
+            self.status_progress.setRange(0, 100)
+            self.status_progress.setValue(value)
+        else:
+            self.status_progress.setRange(0, 0)
 
-        System::Void btnOpenParen_Click(System::Object^ sender, System::EventArgs^ e)
-        {
-            expressionBox->Text += "(";
+    def save_session(self):
+        if not self.server_info:
+            return
+            
+        session = {
+            'host': self.server_info['host'],
+            'port': self.server_info['port'],
+            'user': self.server_info['user'],
+            'password': CIPHER.encrypt(self.server_info['password'].encode()).decode()
         }
+        
+        config_path = os.path.join(os.path.expanduser("~"), ".xray_manager")
+        os.makedirs(config_path, exist_ok=True)
+        
+        try:
+            with open(os.path.join(config_path, "session.json"), 'w') as f:
+                json.dump(session, f)
+        except Exception as e:
+            logger.error(f"Failed to save session: {str(e)}")
 
-        System::Void btnCloseParen_Click(System::Object^ sender, System::EventArgs^ e)
-        {
-            expressionBox->Text += ")";
-        }
+    def load_session(self):
+        config_path = os.path.join(os.path.expanduser("~"), ".xray_manager", "session.json")
+        if not os.path.exists(config_path):
+            return
+            
+        try:
+            with open(config_path, 'r') as f:
+                session = json.load(f)
+                
+            self.host_input.setText(session.get('host', ''))
+            self.port_input.setValue(session.get('port', 22))
+            self.user_input.setText(session.get('user', ''))
+            
+            encrypted_pass = session.get('password', '')
+            if encrypted_pass:
+                self.pass_input.setText(CIPHER.decrypt(encrypted_pass.encode()).decode())
+        except Exception as e:
+            logger.error(f"Failed to load session: {str(e)}")
 
-        System::Void btnBack_Click(System::Object^ sender, System::EventArgs^ e)
-        {
-            if (expressionBox->Text->Length > 0)
-            {
-                expressionBox->Text = expressionBox->Text->Substring(0, expressionBox->Text->Length - 1);
-            }
-        }
+    def tray_icon_clicked(self, reason):
+        if reason == QSystemTrayIcon.DoubleClick:
+            self.show_normal()
 
-        System::Void btnClear_Click(System::Object^ sender, System::EventArgs^ e)
-        {
-            expressionBox->Clear();
-        }
+    def show_normal(self):
+        self.show()
+        self.setWindowState(self.windowState() & ~Qt.WindowMinimized | Qt.WindowActive)
+        self.activateWindow()
 
-        System::Void btnEquals_Click(System::Object^ sender, System::EventArgs^ e)
-        {
-            try
-            {
-                double result = EvaluateExpression(expressionBox->Text);
-                expressionBox->Text = result.ToString();
-            }
-            catch (Exception^ ex)
-            {
-                expressionBox->Text = "Error: " + ex->Message;
-            }
-        }
+    def closeEvent(self, event):
+        if self.ssh_worker and self.ssh_worker.isRunning():
+            self.ssh_worker.stop()
+        
+        if self.save_pass_check.isChecked():
+            self.save_session()
+        
+        event.accept()
 
-        System::Void btnTrig_Click(System::Object^ sender, System::EventArgs^ e)
-        {
-            trigMenu->Visible = !trigMenu->Visible;
-        }
+def main():
+    app = QApplication(sys.argv)
+    app.setStyle(QStyleFactory.create("Fusion"))
+    window = XrayManager()
+    window.show()
+    sys.exit(app.exec_())
 
-        System::Void btnSin_Click(System::Object^ sender, System::EventArgs^ e)
-        {
-            expressionBox->Text += "sin(";
-        }
-
-        System::Void btnCos_Click(System::Object^ sender, System::EventArgs^ e)
-        {
-            expressionBox->Text += "cos(";
-        }
-
-        System::Void btnTan_Click(System::Object^ sender, System::EventArgs^ e)
-        {
-            expressionBox->Text += "tan(";
-        }
-
-        System::Void btnCot_Click(System::Object^ sender, System::EventArgs^ e)
-        {
-            expressionBox->Text += "cot(";
-        }
-
-        System::Void btnSqrt_Click(System::Object^ sender, System::EventArgs^ e)
-        {
-            expressionBox->Text += "sqrt(";
-        }
-
-        System::Void btnPower_Click(System::Object^ sender, System::EventArgs^ e)
-        {
-            expressionBox->Text += "^";
-        }
-
-        System::Void btnDot_Click(System::Object^ sender, System::EventArgs^ e)
-        {
-            expressionBox->Text += ".";
-        }
-
-        System::Void btnSign_Click(System::Object^ sender, System::EventArgs^ e)
-        {
-            expressionBox->Text += "-";
-        }
-    };
-}
+if __name__ == "__main__":
+    main()
