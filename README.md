@@ -1,4 +1,6 @@
 
+pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple --trusted-host pypi.tuna.tsinghua.edu.cn
+
 python -c "from openvoice.api import ToneColorConverter; print('✅ OpenVoice импортирован успешно')"
 
 Отлично! Ты выбрал **Ubuntu Linux** — идеальную платформу для этого проекта.  
