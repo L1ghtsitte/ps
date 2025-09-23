@@ -651,3 +651,10 @@ deactivate
 echo -e "${GREEN}✅ Скрипт завершён. Удачи в создании цифрового двойника отца! 🖤${NC}"
 
 ---
+
+
+
+cd ~/father_ai/OpenVoice/checkpoints/base_speakers/ZH
+
+wget --no-check-certificate \
+  https://myshell-public-repo-hosting.s3.amazonaws.com/openvoice/checkpoints/base_speakers/ZH/checkpoint.pth
