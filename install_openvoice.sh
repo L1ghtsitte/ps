@@ -76,20 +76,17 @@ mkdir -p checkpoints/base_speakers/ZH 2>> "$ERROR_LOG"
 echo -e "${YELLOW}⬇️ Скачиваю модели OpenVoice...${NC}"
 echo "=== Начало скачивания: $(date) ===" >> "$DOWNLOAD_LOG"
 
-wget -q --show-progress -O checkpoints/base_speakers/ZH/checkpoint.pth https://myshell-public-repo-hosting.s3.amazonaws.com/openvoice/checkpoints/base_speakers/ZH/checkpoint.pth 2>> "$DOWNLOAD_LOG"
-if [ $? -ne 0 ]; then
-    echo -e "${RED}❌ Ошибка загрузки checkpoint.pth. Проверь интернет или ссылку.${NC}" | tee -a "$ERROR_LOG"
-    exit 1
+# Проверяем, существует ли уже checkpoint.pth
+if [ ! -f "checkpoints/base_speakers/ZH/checkpoint.pth" ] || [ $(stat -c%s "checkpoints/base_speakers/ZH/checkpoint.pth") -lt 200000000 ]; then
+    echo -e "${YELLOW}⬇️ Скачиваю checkpoint.pth...${NC}"
+    wget --no-check-certificate -O checkpoints/base_speakers/ZH/checkpoint.pth https://myshell-public-repo-hosting.s3.amazonaws.com/openvoice/checkpoints/base_speakers/ZH/checkpoint.pth 2>> "$DOWNLOAD_LOG"
+    if [ $? -ne 0 ]; then
+        echo -e "${RED}❌ Не удалось скачать checkpoint.pth. Скачайте его вручную по ссылке:${NC}"
+        echo -e "${RED}https://myshell-public-repo-hosting.s3.amazonaws.com/openvoice/checkpoints/base_speakers/ZH/checkpoint.pth${NC}"
+        exit 1
+    fi
 else
-    echo "✅ checkpoint.pth скачан успешно." >> "$DOWNLOAD_LOG"
-fi
-
-wget -q --show-progress -O checkpoints/base_speakers/ZH/config.json https://myshell-public-repo-hosting.s3.amazonaws.com/openvoice/checkpoints/base_speakers/ZH/config.json 2>> "$DOWNLOAD_LOG"
-if [ $? -ne 0 ]; then
-    echo -e "${RED}❌ Ошибка загрузки config.json. Проверь интернет или ссылку.${NC}" | tee -a "$ERROR_LOG"
-    exit 1
-else
-    echo "✅ config.json скачан успешно." >> "$DOWNLOAD_LOG"
+    echo -e "${GREEN}✅ checkpoint.pth уже существует — пропускаем скачивание.${NC}"
 fi
 
 echo "=== Окончание скачивания: $(date) ===" >> "$DOWNLOAD_LOG"
