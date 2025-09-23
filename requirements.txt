@@ -1,0 +1,28 @@
+# Основные зависимости OpenVoice
+torch>=2.0.0
+torchaudio>=2.0.0
+numpy>=1.21.0
+scipy>=1.7.0
+librosa>=0.9.0
+soundfile>=0.10.0
+pydub>=0.25.0
+transformers>=4.30.0
+gradio>=3.30.0
+
+# MeloTTS (для русского языка)
+melo>=0.1.0
+
+# Whisper.cpp (для STT — распознавания речи)
+# (Whisper.cpp не требует Python-зависимостей — он на C++)
+
+# LlamaIndex + Ollama (для RAG и LLM)
+llama-index>=0.10.0
+llama-index-llms-ollama>=0.1.0
+llama-index-readers-file>=0.1.0
+llama-index-vector-stores-chroma>=0.1.0
+chromadb>=0.4.0
+ollama>=0.1.0
+
+# Дополнительно (для работы с аудио и логами)
+python-dotenv>=1.0.0
+pathlib>=1.0.1
