@@ -1,3 +1,4 @@
+python extract_speaker_embedding.py --source_path ../datasets/father.wav --output_path ../speaker_embeddings/father.npy
 
 pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple --trusted-host pypi.tuna.tsinghua.edu.cn
 
