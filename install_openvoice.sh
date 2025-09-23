@@ -54,7 +54,7 @@ source venv/bin/activate 2>> "$ERROR_LOG"
 
 # Обновляем pip
 echo -e "${YELLOW}⬆️ Обновляю pip...${NC}"
-pip install --upgrade pip 2>> "$ERROR_LOG"
+pip install --upgrade pip -i https://pypi.tuna.tsinghua.edu.cn/simple 2>> "$ERROR_LOG"
 if [ $? -ne 0 ]; then
     echo -e "${RED}❌ Ошибка при обновлении pip. Проверь подключение к PyPI.${NC}" | tee -a "$ERROR_LOG"
     exit 1
